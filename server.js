@@ -194,6 +194,12 @@ async function api(req, res, url) {
       return json(res, 400, { error: e.message });
     }
   }
+  if (p === '/api/trade/close') {
+    try {
+      if (body.all) { const n = broker.openTrades().map((t) => broker.closeNow(t.id)).length; return json(res, 200, { closed: n, balance: broker.balance }); }
+      return json(res, 200, { trade: tradeView(broker.closeNow(body.id)), balance: broker.balance });
+    } catch (e) { return json(res, 400, { error: e.message }); }
+  }
   if (p === '/api/topup') {
     try { return json(res, 200, { balance: broker.topUp(body.amount) }); } catch (e) { return json(res, 400, { error: e.message }); }
   }

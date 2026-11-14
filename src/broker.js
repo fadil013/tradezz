@@ -108,6 +108,16 @@ export class Broker {
     this.timers.set(trade.id, setTimeout(() => this.settle(trade.id), ms));
   }
 
+  // Close an open trade right now at the live price (same win/loss/draw rule as at expiry).
+  closeNow(id) {
+    const t = this.trades.find((x) => x.id === Number(id));
+    if (!t) throw new Error('Trade not found');
+    if (t.status !== 'open') throw new Error('Trade is already closed');
+    clearTimeout(this.timers.get(t.id));
+    this.settle(t.id);
+    return t;
+  }
+
   settle(id) {
     const t = this.trades.find((x) => x.id === id);
     this.timers.delete(id);
