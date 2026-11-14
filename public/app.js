@@ -104,85 +104,17 @@ function toast(kind, title, sub = '', ms = 4200) {
 // background art (soft mountains, like the broker terminal)
 // ======================================================================
 function setMountainBg() {
-  // Procedural alpine photo-style backdrop: ridged-noise terrain, lit from the upper left,
-  // snow on the high faces, mist in the valleys, all pulled into the dark navy palette.
-  const W = 960, H = 540;
-  let seed = 1337;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const perm = new Uint16Array(512);
-  const base = Array.from({ length: 256 }, (_, i) => i);
-  for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [base[i], base[j]] = [base[j], base[i]]; }
-  for (let i = 0; i < 512; i++) perm[i] = base[i & 255];
-  const val = (x, y) => perm[(perm[x & 255] + y) & 255] / 255;
-  const sm = (t) => t * t * (3 - 2 * t);
-  const noise = (x, y) => {
-    const xi = Math.floor(x), yi = Math.floor(y), xf = sm(x - xi), yf = sm(y - yi);
-    const a = val(xi, yi), b = val(xi + 1, yi), c = val(xi, yi + 1), d = val(xi + 1, yi + 1);
-    return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf;
-  };
-  const ridged = (x, y, oct) => {
-    let s = 0, amp = 0.55, f = 1, w = 1;
-    for (let o = 0; o < oct; o++) {
-      let n = 1 - Math.abs(noise(x * f, y * f) * 2 - 1);
-      n *= n; n *= w; w = Math.min(1, n * 1.6);
-      s += n * amp; f *= 2.1; amp *= 0.5;
-    }
-    return s;
-  };
-  // skyline: a few big peaks
-  const sky = new Float32Array(W);
-  for (let x = 0; x < W; x++) {
-    const t = x / W;
-    const peaks = 0.62 * Math.exp(-Math.pow((t - 0.66) / 0.16, 2)) + 0.4 * Math.exp(-Math.pow((t - 0.22) / 0.2, 2)) + 0.3 * Math.exp(-Math.pow((t - 0.95) / 0.12, 2));
-    sky[x] = H * (0.5 - peaks * 0.75 - 0.3 * ridged(x * 0.02, 3.1, 5));
-  }
-  const hm = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) hm[y * W + x] = ridged(x * 0.03 + y * 0.012, y * 0.014 + 9, 7) * 0.9 + ridged(x * 0.004, y * 0.008 + 40, 3) * 0.7 + (y / H) * 0.2;
+  // Plain deep-navy backdrop with a fine dot grid. No decoration competing with the candles.
+  const W = 1280, H = 720;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
-  const img = g.createImageData(W, H);
-  const d = img.data;
-  const lx = -0.7, ly = -0.55;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = (y * W + x) * 4;
-      const s = sky[x];
-      let r, gg, b;
-      if (y < s) {
-        const t = y / H;
-        r = 22 + 8 * t; gg = 28 + 10 * t; b = 52 + 14 * t; // night sky
-      } else {
-        const xm = Math.max(1, Math.min(W - 2, x)), ym = Math.max(1, Math.min(H - 2, y));
-        const dx = hm[ym * W + xm + 1] - hm[ym * W + xm - 1];
-        const dy = hm[(ym + 1) * W + xm] - hm[(ym - 1) * W + xm];
-        let sh = 0.5 + (-dx * lx - dy * ly) * 7;
-        sh = Math.max(0, Math.min(1, sh));
-        const depth = (y - s) / H;
-        const rock = hm[y * W + x];
-        const snow = Math.max(0, 1 - depth * 3) * Math.max(0, Math.min(1, (rock - 0.5) * 3)) * sh;
-        const k = 0.28 + 0.72 * sh;
-        r = 24 + 58 * k + 70 * snow; gg = 30 + 66 * k + 76 * snow; b = 54 + 92 * k + 92 * snow;
-        const f = Math.min(1, depth * 0.6); // fade to dark navy toward the bottom
-        r = r * (1 - f * 0.55) + 24 * f * 0.55; gg = gg * (1 - f * 0.55) + 30 * f * 0.55; b = b * (1 - f * 0.55) + 56 * f * 0.55;
-      }
-      d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = 255;
-    }
-  }
-  g.putImageData(img, 0, 0);
-  // mist banks
-  g.filter = 'blur(22px)';
-  for (const [cx, cy, rx, ry, a] of [[0.15, 0.62, 0.3, 0.05, 0.28], [0.5, 0.72, 0.4, 0.06, 0.26], [0.85, 0.58, 0.3, 0.05, 0.24], [0.35, 0.45, 0.2, 0.03, 0.14]]) {
-    g.fillStyle = `rgba(120,135,185,${a})`;
-    g.beginPath(); g.ellipse(cx * W, cy * H, rx * W, ry * H, 0, 0, 6.2832); g.fill();
-  }
-  g.filter = 'none';
-  // keep it low-contrast so candles stay readable
-  g.fillStyle = 'rgba(26,33,60,0.52)'; g.fillRect(0, 0, W, H);
-  const bot = g.createLinearGradient(0, H * 0.55, 0, H);
-  bot.addColorStop(0, 'rgba(26,33,60,0)'); bot.addColorStop(1, 'rgba(26,33,60,0.7)');
-  g.fillStyle = bot; g.fillRect(0, 0, W, H);
-  $('#chartwrap').style.backgroundImage = `url("${cv.toDataURL('image/jpeg', 0.85)}")`;
+  const base = g.createLinearGradient(0, 0, 0, H);
+  base.addColorStop(0, '#171d36'); base.addColorStop(1, '#1d2543');
+  g.fillStyle = base; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(170,190,240,0.06)';
+  for (let y = 16; y < H; y += 24) for (let x = 16; x < W; x += 24) g.fillRect(x, y, 1.5, 1.5);
+  $('#chartwrap').style.backgroundImage = `url("${cv.toDataURL('image/jpeg', 0.92)}")`;
 }
 
 // ======================================================================
@@ -278,6 +210,7 @@ async function selectSymbol(i, first = false) {
   ls.set('sym', i);
   ls.set('tabs', JSON.stringify(S.tabs));
   const s = cur();
+  $('#chartwrap').dataset.sym = s.pair;
   $('#assetName').textContent = s.name;
   $('#assetCoin').outerHTML = coinHtml(s).replace('<span ', '<span id="assetCoin" ');
   $('#favBtn').classList.toggle('on', Number(ls.get('fav', -1)) === i);
