@@ -151,6 +151,17 @@ export class Broker {
     return this.trades.slice(-limit).reverse();
   }
 
+  // Set the demo balance to an exact amount without touching trade history (only when nothing is open).
+  setBalance(amount) {
+    amount = round2(Number(amount));
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1e7) throw new Error('Invalid amount');
+    if (this.openTrades().length) throw new Error('Close or wait for open trades first');
+    this.balance = amount;
+    this.save();
+    this.emit('balance', this.balance);
+    return this.balance;
+  }
+
   topUp(amount) {
     amount = round2(Number(amount));
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1e7) throw new Error('Invalid amount');

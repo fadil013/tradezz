@@ -205,6 +205,9 @@ async function api(req, res, url) {
       return json(res, 200, { trade: tradeView(broker.closeNow(body.id)), balance: broker.balance });
     } catch (e) { return json(res, 400, { error: e.message }); }
   }
+  if (p === '/api/balance') {
+    try { return json(res, 200, { balance: broker.setBalance(body.amount) }); } catch (e) { return json(res, 400, { error: e.message }); }
+  }
   if (p === '/api/topup') {
     try { return json(res, 200, { balance: broker.topUp(body.amount) }); } catch (e) { return json(res, 400, { error: e.message }); }
   }
