@@ -373,8 +373,11 @@ function upsertTrade(t) {
   if (t.status === 'open' && !wasOpen && (t.source === 'claude-code' || t.source === 'claude')) {
     const si = S.symbols.findIndex((x) => x.id === t.symbol);
     if (si >= 0) {
-      toast('info', `${t.source === 'claude-code' ? 'Claude Code' : 'Claude'}: ${t.dir === 'buy' ? 'BUY' : 'SELL'} ${S.symbols[si].short} $${fmt(t.amount, 2)}`, `${durName(t.duration)}${t.strategy ? ' · ' + t.strategy : ''}`, 6000);
+      toast('info', `${t.source === 'claude-code' ? 'Claude Trades' : 'Claude'}: ${t.dir === 'buy' ? 'BUY' : 'SELL'} ${S.symbols[si].short} $${fmt(t.amount, 2)}`, `${durName(t.duration)}${t.strategy ? ' · ' + t.strategy : ''}`, 6000);
       if (si !== S.idx) selectSymbol(si);
+      // mirror Claude's trade in the Time / Amount boxes (display only, not saved as your default)
+      S.duration = t.duration; $('#timeInput').value = fmtDur(t.duration); if (chart) chart.expirySec = t.duration;
+      S.amount = t.amount; $('#amtInput').value = t.amount % 1 ? fmt(t.amount, 2) : fmt(t.amount, 0); updatePayout();
     }
   }
   syncChartTrades();
@@ -385,7 +388,7 @@ function upsertTrade(t) {
 
 function onSettled(t) {
   const s = S.symbols.find((x) => x.id === t.symbol);
-  const who = t.source === 'claude' ? ' · Claude' : t.source === 'claude-code' ? ' · Claude Code' : '';
+  const who = t.source === 'claude' ? ' · Claude' : t.source === 'claude-code' ? ' · Claude Trades' : '';
   const sub = `${s.pair} · ${t.dir === 'buy' ? 'BUY' : 'SELL'} · ${durName(t.duration)}${who}`;
   if (t.status === 'won') { toast('win', `WIN  ${signed(t.profit)}`, sub); beep([660, 880, 1100], 0.08, 0.05); }
   else if (t.status === 'lost') { toast('lose', `LOSS  ${signed(t.profit)}`, sub); beep([330, 250], 0.12, 0.05); }
@@ -501,7 +504,7 @@ function closeSheet() {
 }
 
 const dirTag = (d) => `<span class="tag ${d === 'buy' ? 'buy' : 'sell'}">${d === 'buy' ? 'BUY' : 'SELL'}</span>`;
-const srcTag = (s) => (s === 'claude' ? '<span class="tag claude">Claude</span>' : s === 'claude-code' ? '<span class="tag code">Claude Code</span>' : '<span class="tag">You</span>');
+const srcTag = (s) => (s === 'claude' ? '<span class="tag claude">Claude</span>' : s === 'claude-code' ? '<span class="tag code">Claude Trades</span>' : '<span class="tag">You</span>');
 const symOf = (id) => S.symbols.find((x) => x.id === id);
 
 function tradeRows(list, withResult = true) {
@@ -539,7 +542,7 @@ const SHEETS = {
     const row = (name, tag, x) => `<tr><td>${tag}</td><td class="r">${x ? x.trades : 0}</td><td class="r">${x && x.winRate != null ? x.winRate + '%' : '–'}</td><td class="r ${x && x.pnl >= 0 ? 'pos' : 'neg'}">${signed(x ? x.pnl : 0)}</td></tr>`;
     return {
       title: 'Leaderboard',
-      html: `<h4>Who trades better?</h4><table class="t"><thead><tr><th>Trader</th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">P/L</th></tr></thead><tbody>${row('You', srcTag('user'), st.user)}${row('Claude', srcTag('claude'), st.claude)}${row('Claude Code', srcTag('claude-code'), st['claude-code'])}</tbody></table>
+      html: `<h4>Who trades better?</h4><table class="t"><thead><tr><th>Trader</th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">P/L</th></tr></thead><tbody>${row('You', srcTag('user'), st.user)}${row('Claude', srcTag('claude'), st.claude)}${row('Claude Trades', srcTag('claude-code'), st['claude-code'])}</tbody></table>
 <h4>Break-even math</h4><div class="note">A win pays only 84-92% of the stake while a loss costs all of it, so you need to win about <b>52-54%</b> of trades just to break even. Short-term price moves are close to a coin flip, which is why most traders (and most AIs) end up slightly negative. A win rate that stays above ~54% over a few hundred trades is a real edge.</div>`,
     };
   },
@@ -697,7 +700,7 @@ function updateClaudePill() {
   const cc = A.cc;
   if (cc && cc.active) {
     pill.classList.add(cc.connected ? 'on' : 'think');
-    t = cc.connected ? `Claude Code · ${Math.floor(cc.remainingSec / 60)}:${pad2(cc.remainingSec % 60)}` : 'Claude Code · waiting';
+    t = cc.connected ? `Claude Trades · ${Math.floor(cc.remainingSec / 60)}:${pad2(cc.remainingSec % 60)}` : 'Claude Trades · waiting';
   } else if (A.status === 'thinking') { pill.classList.add('think'); t = 'Claude · analysing…'; }
   else if (A.status === 'nokey') { pill.classList.add('err'); t = 'Claude · add API key'; }
   else if (A.status === 'error') { pill.classList.add('err'); t = 'Claude · error'; }
@@ -784,11 +787,11 @@ function ccStatus() {
   if (c.active) {
     const m = Math.floor(c.remainingSec / 60), s = c.remainingSec % 60;
     const pnl = `<b class="${c.pnl >= 0 ? 'pos' : 'neg'}">${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)}</b>`;
-    return `<div class="ccstat live"><span class="cdot"></span>Claude Code is trading</div>
+    return `<div class="ccstat live"><span class="cdot"></span>Claude Trades is trading</div>
 <div class="ccrow"><div><small>Time left</small><b>${m}:${pad2(s)}</b></div><div><small>Bankroll left</small><b>$${fmt(c.left, 2)}</b></div><div><small>P/L</small>${pnl}</div><div><small>Trades W/L</small><b>${c.trades} · ${c.wins}/${c.losses}</b></div></div>`;
   }
-  if (c.pending) return `<div class="ccstat wait"><span class="cdot"></span>Sent. Waiting for Claude Code to pick it up…</div>`;
-  if (c.reply) return `<div class="ccreply"><span>Claude Code</span>${esc(c.reply)}</div>`;
+  if (c.pending) return `<div class="ccstat wait"><span class="cdot"></span>Sent. Waiting for Claude Trades to pick it up…</div>`;
+  if (c.reply) return `<div class="ccreply"><span>Claude Trades</span>${esc(c.reply)}</div>`;
   if (c.endedReason) return `<div class="ccstat"><span class="cdot"></span>Last session ended: ${esc(c.endedReason)} · P/L ${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)} over ${c.trades} trades</div>`;
   return '';
 }
@@ -798,7 +801,7 @@ function renderClaudeModal() {
   const keep = $('#ccPrompt') ? $('#ccPrompt').value : ccPick.prompt;
   ccPick.prompt = keep;
   $('#modal').innerHTML = `<div class="mbox cc"><button class="mclose" data-mact="close">${icon('close')}</button>
-<div class="mhead"><div><h3>Claude Code</h3><p>Write your instruction. Say how long, how much money and what to trade. Claude Code draws on your chart and trades.</p></div></div>
+<div class="mhead"><svg class="hlogo" viewBox="0 0 24 24">${icon('claude')}</svg><div><h3>Claude Trades</h3><p>Write your instruction. Say how long, how much money and what to trade. Claude draws on your chart and trades.</p></div></div>
 <textarea id="ccPrompt" class="ccprompt-in" rows="6" placeholder="e.g. Trade BTC and ETH for 30 minutes with $500. Only take high-confidence setups, max 3% per trade, stop if I lose $100.">${esc(ccPick.prompt)}</textarea>
 <div class="ccact"><button class="btn green big" data-mact="ccsend">${icon('play', 14)} ${c.active ? 'Update Trade' : 'Make Trade'}</button>${c.active ? '<button class="btn danger big" data-mact="ccstop">Stop</button>' : ''}</div>
 <div class="ccstatus">${ccStatus()}</div>
@@ -826,8 +829,8 @@ $('#modal').addEventListener('click', async (e) => {
     else if (a === 'ccsend') {
     const ta = $('#ccPrompt');
     const text = ta ? ta.value.trim() : '';
-    if (!text) { toast('err', 'Write something first', 'Tell Claude Code what to do'); return; }
-    try { await api('/api/cc/prompt', { prompt: text }); ccPick.prompt = ''; toast('info', 'Sent to Claude Code', 'Waiting for it to pick it up', 3500); } catch (er) { toast('err', 'Could not send', er.message); }
+    if (!text) { toast('err', 'Write something first', 'Tell Claude Trades what to do'); return; }
+    try { await api('/api/cc/prompt', { prompt: text }); ccPick.prompt = ''; toast('info', 'Sent to Claude Trades', 'Waiting for it to pick it up', 3500); } catch (er) { toast('err', 'Could not send', er.message); }
   }
   else if (a === 'ccstop') { try { await api('/api/cc/stop', {}); } catch (er) { toast('err', er.message); } }
   else if (a === 'model') { cm.model = el.dataset.v; renderClaudeModal(); }
