@@ -340,6 +340,24 @@ export class TradeChart {
     ctx.beginPath();
     ctx.rect(0, 0, pw, fullBot);
     ctx.clip();
+    // faint live glow + slow sonar ring behind the current price (tints with the last candle's direction)
+    {
+      const gx = this.tx(lastC.t + tf / 2), gy = this.ty(this.dispC);
+      const rgb = this.dispC >= lastC.o ? '60,200,90' : '240,80,60';
+      const breathe = 0.8 + 0.2 * Math.sin(nowSec * 1.3);
+      const rg = ctx.createRadialGradient(gx, gy, 0, gx, gy, 300);
+      rg.addColorStop(0, `rgba(${rgb},${(0.085 * breathe).toFixed(3)})`);
+      rg.addColorStop(0.45, 'rgba(70,120,255,0.03)');
+      rg.addColorStop(1, 'rgba(70,120,255,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, pw, fullBot);
+      const ph = (nowSec % 5) / 5;
+      ctx.strokeStyle = `rgba(${rgb},${(0.1 * (1 - ph) * (1 - ph)).toFixed(3)})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 10 + ph * 190, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.lineWidth = 1;
     ctx.strokeStyle = C.grid;
     ctx.fillStyle = C.axis;
