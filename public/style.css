@@ -43,7 +43,7 @@ i[data-icon] .ic { width: 100%; height: 100%; }
 .claude-pill { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 14px; border-radius: 17px; background: #20283e; border: 1px solid #2d3756; color: #c9d1e6; font-size: 12.5px; font-weight: 600; transition: .15s; }
 .claude-pill:hover { background: #28314c; }
 .cdot { width: 9px; height: 9px; border-radius: 50%; background: #5d6785; }
-.claude-pill.on .cdot { background: #44c64e; box-shadow: 0 0 0 3px rgba(68,198,78,.2); }
+.claude-pill.on .cdot { background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.3); }
 .claude-pill.think .cdot { background: #ffb020; animation: pulse 1s infinite; }
 .claude-pill.err .cdot { background: #f33b2b; }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,176,32,.5); } 50% { box-shadow: 0 0 0 6px rgba(255,176,32,0); } }
@@ -259,10 +259,10 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .seg button.on { background: #36456f; color: #fff; }
 
 /* ---------- Claude Trade ---------- */
-.claude-btn { position: relative; width: 100%; height: 44px; margin-top: 14px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 9px; font-weight: 600; font-size: 14px; letter-spacing: .2px; color: #e6eaf6; background: #2a3354; border: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); transition: background .15s; }
-.claude-btn .cmark { color: #d97757; flex: none; }
-.claude-btn:hover { background: #33406a; }
-.claude-btn:active { background: #263050; }
+.claude-btn { position: relative; width: 100%; height: 44px; margin-top: 14px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 9px; font-weight: 600; font-size: 14px; letter-spacing: .2px; color: #fff; background: #d97757; border: 0; box-shadow: none; transition: background .15s; }
+.claude-btn .cmark { color: #fff; flex: none; }
+.claude-btn:hover { background: #e28664; }
+.claude-btn:active { background: #c96a4b; }
 .claude-btn.on::after { content: ''; position: absolute; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: #44c64e; box-shadow: 0 0 0 3px rgba(68,198,78,.2); }
 @keyframes cglow { 0%,100% { box-shadow: 0 4px 0 #4a2fb8, 0 0 0 0 rgba(162,75,255,.5); } 50% { box-shadow: 0 4px 0 #4a2fb8, 0 0 0 8px rgba(162,75,255,0); } }
 
