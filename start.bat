@@ -1,5 +1,5 @@
 @echo off
-title Tijarat
+title Tradezz
 cd /d "%~dp0"
 if not exist node_modules (
   echo Installing dependencies...

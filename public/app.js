@@ -601,7 +601,7 @@ const SHEETS = {
   help() {
     return {
       title: 'Help',
-      html: `<h4>How Tijarat works</h4><div class="note">Pick an asset, set a <b>time</b> and an <b>amount</b>, then press <b>BUY</b> if you think the price will be <b>higher</b> when the timer ends, or <b>SELL</b> if <b>lower</b>. Right = you earn the payout (e.g. +92%). Wrong = you lose the amount. Exactly equal = stake back.</div>
+      html: `<h4>How Tradezz works</h4><div class="note">Pick an asset, set a <b>time</b> and an <b>amount</b>, then press <b>BUY</b> if you think the price will be <b>higher</b> when the timer ends, or <b>SELL</b> if <b>lower</b>. Right = you earn the payout (e.g. +92%). Wrong = you lose the amount. Exactly equal = stake back.</div>
 <h4>Real prices, fake money</h4><div class="note">Prices stream live from Binance's public market data. The money is a demo balance on your computer - top it up or reset it any time in <b>Finance</b>.</div>
 <h4>Let Claude trade</h4><div class="note">Open <b>Claude</b> in the left menu, add your Anthropic API key, choose Haiku or Sonnet, and switch it on. Claude reads the live candles and indicators, decides call / put / skip for every asset, and the platform executes it. Check <b>Leaderboard</b> to see if it beats you.</div>
 <h4>Claude Code mode</h4><div class="note">A Claude Code session can trade too, with no API key: it reads <span class="kbd">GET /api/snapshot</span> and places trades with <span class="kbd">POST /api/trade</span>. See <b>CLAUDE.md</b> in the project folder.</div>`,
@@ -1098,7 +1098,7 @@ async function boot() {
   try {
     init = await api('/api/init');
   } catch (e) {
-    document.body.insertAdjacentHTML('beforeend', `<div style="position:fixed;inset:0;display:grid;place-items:center;background:#161c2e;color:#fff;font:18px sans-serif">Cannot reach the Tijarat server. Start it with start.bat, then refresh.</div>`);
+    document.body.insertAdjacentHTML('beforeend', `<div style="position:fixed;inset:0;display:grid;place-items:center;background:#161c2e;color:#fff;font:18px sans-serif">Cannot reach the Tradezz server. Start it with start.bat, then refresh.</div>`);
     return;
   }
   S.symbols = init.symbols;

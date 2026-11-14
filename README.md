@@ -1,14 +1,14 @@
-# Tijarat
+# Tradezz
 
 A **local, fake-money binary-options trading platform** that runs on **real live market prices**, with **Claude as an optional AI trader** that analyses the market, draws its strategy on the chart and places demo trades.
 
 Built to answer one question: *how good is Claude at short-term trading?*
 
-![Tijarat screenshot](docs/screenshot.jpg)
+![Tradezz screenshot](docs/screenshot.jpg)
 
 > **Demo money only.** Nothing connects to a real broker, exchange account or wallet. Prices are real (Binance public market data); the balance is a number on your computer. This is not financial advice. Short-term price moves are close to a coin flip, so don't expect any trader, human or AI, to get rich here.
 >
-> Tijarat is an independent hobby project. It is not affiliated with or endorsed by any broker.
+> Tradezz is an independent hobby project. It is not affiliated with or endorsed by any broker.
 
 ## Features
 
@@ -25,8 +25,8 @@ Built to answer one question: *how good is Claude at short-term trading?*
 Requires [Node.js](https://nodejs.org) 22 or newer.
 
 ```bash
-git clone https://github.com/fadil013/tijarat.git
-cd tijarat
+git clone https://github.com/fadil013/tradezz.git
+cd tradezz
 npm install
 npm start
 ```

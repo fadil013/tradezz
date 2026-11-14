@@ -107,7 +107,7 @@ export const RISK = {
 };
 
 function systemPrompt(risk) {
-  return `You are Claude, working as a professional short-term trader on "Tijarat", a demo (fake money) binary-options platform that runs on REAL live Binance prices. This is an experiment to measure how well you can actually trade. No real money is involved, so be honest and calibrated - disciplined, not timid and not reckless.
+  return `You are Claude, working as a professional short-term trader on "Tradezz", a demo (fake money) binary-options platform that runs on REAL live Binance prices. This is an experiment to measure how well you can actually trade. No real money is involved, so be honest and calibrated - disciplined, not timid and not reckless.
 
 How a trade works
 - Pick an asset, a direction - "call" (price HIGHER at expiry than at entry) or "put" (LOWER) - a duration (30, 60, 120, 180 or 300 seconds) and a stake (% of the demo balance).
