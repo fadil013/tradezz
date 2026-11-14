@@ -1,4 +1,4 @@
-// Trade - local server. Serves the web app, streams live prices, runs the paper broker and the Claude trader.
+// Tijarat - local server. Serves the web app, streams live prices, runs the paper broker and the Claude trader.
 // Bound to 127.0.0.1 only. Demo money only - there is no connection to any real trading account.
 
 import http from 'node:http';
@@ -240,13 +240,13 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') console.error(`\nPort ${PORT} is already in use. Close the other Trade window or run with a different port:  set PORT=3001 && node server.js\n`);
+  if (e.code === 'EADDRINUSE') console.error(`\nPort ${PORT} is already in use. Close the other Tijarat window or run with a different port:  set PORT=3001 && node server.js\n`);
   else console.error(e);
   process.exit(1);
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  Trade is running  ->  http://localhost:${PORT}\n  (demo money only - live prices from Binance)\n`);
+  console.log(`\n  Tijarat is running  ->  http://localhost:${PORT}\n  (demo money only - live prices from Binance)\n`);
   feed.start().catch((e) => console.error('[feed]', e));
 });
 

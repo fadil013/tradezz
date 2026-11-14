@@ -1,4 +1,4 @@
-// Central configuration for Trade (demo money, real live prices from Binance public data).
+// Central configuration for Tijarat (demo money, real live prices from Binance public data).
 
 export const PORT = Number(process.env.PORT) || 3000;
 export const HOST = '127.0.0.1'; // local only - never exposed to the network

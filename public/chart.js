@@ -1,4 +1,4 @@
-// Canvas candlestick chart engine for Trade.
+// Canvas candlestick chart engine for Tijarat.
 // - 60fps requestAnimationFrame loop: the chart scrolls continuously with real time,
 //   the last candle and the price axis ease smoothly (no jumps).
 // - Candles / Heikin-Ashi / Line / Area, SMA / EMA / Bollinger, horizontal lines.

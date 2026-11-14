@@ -1,4 +1,4 @@
-# Trade - demo binary-options platform (fake money, real live prices)
+# Tijarat - demo binary-options platform (fake money, real live prices)
 
 Local app: `node server.js` (or double-click `start.bat`) -> http://localhost:3000
 Prices stream live from Binance public data (BTC, ETH, SOL, XRP, BNB vs USDT). The money is a demo balance. Nothing connects to a real account.

@@ -1,7 +1,7 @@
 {
-  "name": "trade",
+  "name": "tijarat",
   "version": "1.0.0",
-  "description": "Trade - a local demo (fake money) binary-options platform running on real live Binance prices, with Claude as an optional trader.",
+  "description": "Tijarat - a local demo (fake money) binary-options platform running on real live Binance prices, with Claude as an optional trader.",
   "private": true,
   "type": "module",
   "scripts": {
