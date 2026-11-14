@@ -104,43 +104,85 @@ function toast(kind, title, sub = '', ms = 4200) {
 // background art (soft mountains, like the broker terminal)
 // ======================================================================
 function setMountainBg() {
-  // Soft layered ranges: each peak has a lit left face, a shaded right face and a snow cap.
-  // Low contrast + slight blur so it reads as atmosphere behind the candles.
-  let seed = 11;
+  // Procedural alpine photo-style backdrop: ridged-noise terrain, lit from the upper left,
+  // snow on the high faces, mist in the valleys, all pulled into the dark navy palette.
+  const W = 960, H = 540;
+  let seed = 1337;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const W = 1600, H = 900;
-  const layers = [
-    { base: 720, hMin: 190, hMax: 290, wMin: 420, wMax: 620, lit: '#46548c', shade: '#242d52', snow: 0.16, op: 0.3, blur: 3 },
-    { base: 780, hMin: 130, hMax: 210, wMin: 360, wMax: 520, lit: '#3e4b80', shade: '#222b4d', snow: 0.1, op: 0.42, blur: 2 },
-    { base: 840, hMin: 80, hMax: 140, wMin: 320, wMax: 460, lit: '#323e6b', shade: '#1d2644', snow: 0, op: 0.6, blur: 1.2 },
-  ];
-  let defs = '', body = '';
-  layers.forEach((L, i) => {
-    const peaks = [];
-    let x = -120 + rnd() * 80;
-    while (x < W + 200) { const w = L.wMin + rnd() * (L.wMax - L.wMin); peaks.push({ x: x + w / 2, w, h: L.hMin + rnd() * (L.hMax - L.hMin) }); x += w * 0.78; }
-    const valley = (a, b) => L.base - Math.min(a.h, b.h) * (0.18 + rnd() * 0.12);
-    let ridge = `M-200 ${H} L-200 ${L.base}`, lit = '', shade = '', snow = '';
-    peaks.forEach((p, k) => {
-      const ay = L.base - p.h, nx = peaks[k + 1];
-      const lx = p.x - p.w * 0.5, rx = p.x + p.w * 0.5;
-      const vy = nx ? valley(p, nx) : L.base;
-      const j1 = [p.x - p.w * 0.22, ay + p.h * (0.3 + rnd() * 0.1)], j2 = [p.x + p.w * 0.2, ay + p.h * (0.34 + rnd() * 0.12)];
-      ridge += ` L${j1[0].toFixed(0)} ${j1[1].toFixed(0)} L${p.x.toFixed(0)} ${ay.toFixed(0)} L${j2[0].toFixed(0)} ${j2[1].toFixed(0)} L${rx.toFixed(0)} ${vy.toFixed(0)}`;
-      shade += `M${p.x.toFixed(0)} ${ay.toFixed(0)} L${j2[0].toFixed(0)} ${j2[1].toFixed(0)} L${rx.toFixed(0)} ${vy.toFixed(0)} L${(p.x + p.w * 0.04).toFixed(0)} ${(L.base + 40).toFixed(0)}Z `;
-      if (L.snow) {
-        const sy = ay + p.h * 0.3;
-        snow += `M${p.x.toFixed(0)} ${ay.toFixed(0)} L${(p.x + p.w * 0.14).toFixed(0)} ${(sy - 6).toFixed(0)} L${(p.x + p.w * 0.07).toFixed(0)} ${(sy + 14).toFixed(0)} L${p.x.toFixed(0)} ${(sy - 4).toFixed(0)} L${(p.x - p.w * 0.08).toFixed(0)} ${(sy + 16).toFixed(0)} L${(p.x - p.w * 0.15).toFixed(0)} ${(sy - 2).toFixed(0)}Z `;
+  const perm = new Uint16Array(512);
+  const base = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [base[i], base[j]] = [base[j], base[i]]; }
+  for (let i = 0; i < 512; i++) perm[i] = base[i & 255];
+  const val = (x, y) => perm[(perm[x & 255] + y) & 255] / 255;
+  const sm = (t) => t * t * (3 - 2 * t);
+  const noise = (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = sm(x - xi), yf = sm(y - yi);
+    const a = val(xi, yi), b = val(xi + 1, yi), c = val(xi, yi + 1), d = val(xi + 1, yi + 1);
+    return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf;
+  };
+  const ridged = (x, y, oct) => {
+    let s = 0, amp = 0.55, f = 1, w = 1;
+    for (let o = 0; o < oct; o++) {
+      let n = 1 - Math.abs(noise(x * f, y * f) * 2 - 1);
+      n *= n; n *= w; w = Math.min(1, n * 1.6);
+      s += n * amp; f *= 2.1; amp *= 0.5;
+    }
+    return s;
+  };
+  // skyline: a few big peaks
+  const sky = new Float32Array(W);
+  for (let x = 0; x < W; x++) {
+    const t = x / W;
+    const peaks = 0.62 * Math.exp(-Math.pow((t - 0.66) / 0.16, 2)) + 0.4 * Math.exp(-Math.pow((t - 0.22) / 0.2, 2)) + 0.3 * Math.exp(-Math.pow((t - 0.95) / 0.12, 2));
+    sky[x] = H * (0.5 - peaks * 0.75 - 0.3 * ridged(x * 0.02, 3.1, 5));
+  }
+  const hm = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) hm[y * W + x] = ridged(x * 0.03 + y * 0.012, y * 0.014 + 9, 7) * 0.9 + ridged(x * 0.004, y * 0.008 + 40, 3) * 0.7 + (y / H) * 0.2;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  const lx = -0.7, ly = -0.55;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const s = sky[x];
+      let r, gg, b;
+      if (y < s) {
+        const t = y / H;
+        r = 22 + 8 * t; gg = 28 + 10 * t; b = 52 + 14 * t; // night sky
+      } else {
+        const xm = Math.max(1, Math.min(W - 2, x)), ym = Math.max(1, Math.min(H - 2, y));
+        const dx = hm[ym * W + xm + 1] - hm[ym * W + xm - 1];
+        const dy = hm[(ym + 1) * W + xm] - hm[(ym - 1) * W + xm];
+        let sh = 0.5 + (-dx * lx - dy * ly) * 7;
+        sh = Math.max(0, Math.min(1, sh));
+        const depth = (y - s) / H;
+        const rock = hm[y * W + x];
+        const snow = Math.max(0, 1 - depth * 3) * Math.max(0, Math.min(1, (rock - 0.5) * 3)) * sh;
+        const k = 0.28 + 0.72 * sh;
+        r = 24 + 58 * k + 70 * snow; gg = 30 + 66 * k + 76 * snow; b = 54 + 92 * k + 92 * snow;
+        const f = Math.min(1, depth * 0.6); // fade to dark navy toward the bottom
+        r = r * (1 - f * 0.55) + 24 * f * 0.55; gg = gg * (1 - f * 0.55) + 30 * f * 0.55; b = b * (1 - f * 0.55) + 56 * f * 0.55;
       }
-    });
-    ridge += ` L${W + 200} ${H}Z`;
-    defs += `<linearGradient id="m${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.lit}"/><stop offset="1" stop-color="${L.shade}"/></linearGradient><filter id="f${i}" x="-2%" y="-2%" width="104%" height="104%"><feGaussianBlur stdDeviation="${L.blur}"/></filter><linearGradient id="fg${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2342" stop-opacity="0"/><stop offset="1" stop-color="#1b2342" stop-opacity=".75"/></linearGradient>`;
-    body += `<g filter="url(#f${i})" opacity="${L.op}"><path d="${ridge}" fill="url(#m${i})"/><path d="${shade}" fill="#10162e" opacity=".28"/>${L.snow ? `<path d="${snow}" fill="#dfe8ff" opacity="${L.snow}"/>` : ''}</g><rect y="${L.base - 60}" width="${W}" height="${H}" fill="url(#fg${i})"/>`;
-  });
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice"><defs>
-<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171d37"/><stop offset="1" stop-color="#1e2849"/></linearGradient>${defs}</defs>
-<rect width="${W}" height="${H}" fill="url(#sky)"/>${body}</svg>`;
-  $('#chartwrap').style.backgroundImage = `url("data:image/svg+xml;base64,${btoa(svg)}")`;
+      d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  // mist banks
+  g.filter = 'blur(22px)';
+  for (const [cx, cy, rx, ry, a] of [[0.15, 0.62, 0.3, 0.05, 0.28], [0.5, 0.72, 0.4, 0.06, 0.26], [0.85, 0.58, 0.3, 0.05, 0.24], [0.35, 0.45, 0.2, 0.03, 0.14]]) {
+    g.fillStyle = `rgba(120,135,185,${a})`;
+    g.beginPath(); g.ellipse(cx * W, cy * H, rx * W, ry * H, 0, 0, 6.2832); g.fill();
+  }
+  g.filter = 'none';
+  // keep it low-contrast so candles stay readable
+  g.fillStyle = 'rgba(26,33,60,0.52)'; g.fillRect(0, 0, W, H);
+  const bot = g.createLinearGradient(0, H * 0.55, 0, H);
+  bot.addColorStop(0, 'rgba(26,33,60,0)'); bot.addColorStop(1, 'rgba(26,33,60,0.7)');
+  g.fillStyle = bot; g.fillRect(0, 0, W, H);
+  $('#chartwrap').style.backgroundImage = `url("${cv.toDataURL('image/jpeg', 0.85)}")`;
 }
 
 // ======================================================================
