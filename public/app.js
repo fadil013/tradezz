@@ -104,22 +104,42 @@ function toast(kind, title, sub = '', ms = 4200) {
 // background art (soft mountains, like the broker terminal)
 // ======================================================================
 function setMountainBg() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
-<defs>
-<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2140"/><stop offset="1" stop-color="#1e2747"/></linearGradient>
-<linearGradient id="fog" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2543" stop-opacity="0"/><stop offset="1" stop-color="#161c32" stop-opacity=".92"/></linearGradient>
-<linearGradient id="snow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8da0d0" stop-opacity=".16"/><stop offset="1" stop-color="#8da0d0" stop-opacity="0"/></linearGradient>
-<filter id="b" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="5"/></filter>
-</defs>
-<rect width="1600" height="900" fill="url(#sky)"/>
-<g filter="url(#b)">
-<path d="M0 470 L70 430 L140 455 L230 360 L300 395 L390 300 L470 370 L540 330 L620 250 L700 330 L770 290 L860 210 L940 300 L1010 265 L1100 330 L1190 240 L1270 310 L1360 270 L1450 335 L1530 300 L1600 340 V900 H0Z" fill="#273050" opacity=".42"/>
-<path d="M390 300 L350 400 L400 360 L430 410 L470 370Z M620 250 L580 340 L630 300 L660 350 L700 330Z M860 210 L810 320 L870 270 L910 330 L940 300Z M1190 240 L1140 330 L1200 290 L1240 340 L1270 310Z" fill="url(#snow)"/>
-<path d="M0 560 L90 500 L180 540 L280 450 L360 510 L450 430 L540 520 L640 440 L730 505 L830 410 L930 500 L1030 430 L1120 510 L1220 420 L1320 495 L1420 440 L1510 500 L1600 460 V900 H0Z" fill="#222b4a" opacity=".6"/>
-<path d="M0 660 L110 590 L210 640 L330 560 L440 625 L560 550 L680 630 L800 560 L930 640 L1050 565 L1170 635 L1290 570 L1410 630 L1520 585 L1600 620 V900 H0Z" fill="#1d2542" opacity=".92"/>
-</g>
-<rect y="380" width="1600" height="520" fill="url(#fog)"/>
-</svg>`;
+  // Soft layered ranges: each peak has a lit left face, a shaded right face and a snow cap.
+  // Low contrast + slight blur so it reads as atmosphere behind the candles.
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const W = 1600, H = 900;
+  const layers = [
+    { base: 720, hMin: 190, hMax: 290, wMin: 420, wMax: 620, lit: '#46548c', shade: '#242d52', snow: 0.16, op: 0.3, blur: 3 },
+    { base: 780, hMin: 130, hMax: 210, wMin: 360, wMax: 520, lit: '#3e4b80', shade: '#222b4d', snow: 0.1, op: 0.42, blur: 2 },
+    { base: 840, hMin: 80, hMax: 140, wMin: 320, wMax: 460, lit: '#323e6b', shade: '#1d2644', snow: 0, op: 0.6, blur: 1.2 },
+  ];
+  let defs = '', body = '';
+  layers.forEach((L, i) => {
+    const peaks = [];
+    let x = -120 + rnd() * 80;
+    while (x < W + 200) { const w = L.wMin + rnd() * (L.wMax - L.wMin); peaks.push({ x: x + w / 2, w, h: L.hMin + rnd() * (L.hMax - L.hMin) }); x += w * 0.78; }
+    const valley = (a, b) => L.base - Math.min(a.h, b.h) * (0.18 + rnd() * 0.12);
+    let ridge = `M-200 ${H} L-200 ${L.base}`, lit = '', shade = '', snow = '';
+    peaks.forEach((p, k) => {
+      const ay = L.base - p.h, nx = peaks[k + 1];
+      const lx = p.x - p.w * 0.5, rx = p.x + p.w * 0.5;
+      const vy = nx ? valley(p, nx) : L.base;
+      const j1 = [p.x - p.w * 0.22, ay + p.h * (0.3 + rnd() * 0.1)], j2 = [p.x + p.w * 0.2, ay + p.h * (0.34 + rnd() * 0.12)];
+      ridge += ` L${j1[0].toFixed(0)} ${j1[1].toFixed(0)} L${p.x.toFixed(0)} ${ay.toFixed(0)} L${j2[0].toFixed(0)} ${j2[1].toFixed(0)} L${rx.toFixed(0)} ${vy.toFixed(0)}`;
+      shade += `M${p.x.toFixed(0)} ${ay.toFixed(0)} L${j2[0].toFixed(0)} ${j2[1].toFixed(0)} L${rx.toFixed(0)} ${vy.toFixed(0)} L${(p.x + p.w * 0.04).toFixed(0)} ${(L.base + 40).toFixed(0)}Z `;
+      if (L.snow) {
+        const sy = ay + p.h * 0.3;
+        snow += `M${p.x.toFixed(0)} ${ay.toFixed(0)} L${(p.x + p.w * 0.14).toFixed(0)} ${(sy - 6).toFixed(0)} L${(p.x + p.w * 0.07).toFixed(0)} ${(sy + 14).toFixed(0)} L${p.x.toFixed(0)} ${(sy - 4).toFixed(0)} L${(p.x - p.w * 0.08).toFixed(0)} ${(sy + 16).toFixed(0)} L${(p.x - p.w * 0.15).toFixed(0)} ${(sy - 2).toFixed(0)}Z `;
+      }
+    });
+    ridge += ` L${W + 200} ${H}Z`;
+    defs += `<linearGradient id="m${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.lit}"/><stop offset="1" stop-color="${L.shade}"/></linearGradient><filter id="f${i}" x="-2%" y="-2%" width="104%" height="104%"><feGaussianBlur stdDeviation="${L.blur}"/></filter><linearGradient id="fg${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2342" stop-opacity="0"/><stop offset="1" stop-color="#1b2342" stop-opacity=".75"/></linearGradient>`;
+    body += `<g filter="url(#f${i})" opacity="${L.op}"><path d="${ridge}" fill="url(#m${i})"/><path d="${shade}" fill="#10162e" opacity=".28"/>${L.snow ? `<path d="${snow}" fill="#dfe8ff" opacity="${L.snow}"/>` : ''}</g><rect y="${L.base - 60}" width="${W}" height="${H}" fill="url(#fg${i})"/>`;
+  });
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice"><defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171d37"/><stop offset="1" stop-color="#1e2849"/></linearGradient>${defs}</defs>
+<rect width="${W}" height="${H}" fill="url(#sky)"/>${body}</svg>`;
   $('#chartwrap').style.backgroundImage = `url("data:image/svg+xml;base64,${btoa(svg)}")`;
 }
 
@@ -706,7 +726,7 @@ function updateClaudePill() {
   $('#claudePillText').textContent = t;
   const on = A.settings.enabled || A.status === 'thinking';
   $('#claudeBtn').classList.toggle('on', on);
-  $('#claudeBtnText').textContent = A.status === 'thinking' ? 'CLAUDE ANALYSING…' : A.settings.enabled ? 'CLAUDE TRADING' : 'CLAUDE TRADE';
+  $('#claudeBtnText').textContent = A.status === 'thinking' ? 'CLAUDE THINKING…' : A.settings.enabled ? 'CLAUDE ON' : 'CLAUDE';
 }
 
 // ---- Claude's chart drawings + strategy card ----------------------------
@@ -811,7 +831,7 @@ function renderClaudeModal() {
     return;
   }
   $('#modal').innerHTML = `<div class="mbox"><button class="mclose" data-mact="close">${icon('close')}</button>
-<div class="mhead"><div class="mlogo">${icon('claude')}</div><div><h3>Claude Trade (API)</h3><p>Pick a model. Claude studies all 5 markets, draws its strategy on your chart, then places demo trades like a professional.</p></div></div>${tabs}
+<div class="mhead"><div class="mlogo">${icon('claude')}</div><div><h3>Claude (API key)</h3><p>Pick a model. Claude studies all 5 markets, draws its strategy on your chart, then places demo trades like a professional.</p></div></div>${tabs}
 <h5>Model</h5><div class="mcards">${A.models.map((m) => { const i = MODEL_INFO[m.id] || [m.label, '', '']; return `<button class="mcard ${cm.model === m.id ? 'on' : ''}" data-mact="model" data-v="${m.id}"><b>${i[0]}</b><span>${i[1]}</span><em>${i[2]}</em></button>`; }).join('')}</div>
 <h5>Trading style</h5><div class="seg">${['conservative', 'balanced', 'aggressive'].map((k) => `<button data-mact="risk" data-v="${k}" class="${cm.risk === k ? 'on' : ''}">${k === 'aggressive' ? 'Active' : k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
 <div class="mnote">${STYLE_INFO[cm.risk]}</div>

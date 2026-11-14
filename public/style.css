@@ -188,8 +188,8 @@ body.dim #chartwrap { background-image: none !important; background-color: #151b
 .trade { position: relative; width: 100%; height: 44px; margin-top: 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px; padding: 0 10px; font-size: 16px; font-weight: 700; letter-spacing: .2px; transition: transform .08s, filter .15s; user-select: none; }
 .trade + .trade { margin-top: 9px; }
 .trade .ti { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.18); display: grid; place-items: center; font-size: 13px; }
-.trade.buy { background: linear-gradient(#37b846, #2d9f3b); box-shadow: 0 3px 0 #1f7a2b; }
-.trade.sell { background: linear-gradient(#f5412f, #e5301f); box-shadow: 0 3px 0 #b22216; }
+.trade.buy { background: #2fae3e; box-shadow: none; }
+.trade.sell { background: #e8402f; box-shadow: none; }
 .trade:hover { filter: brightness(1.08); }
 .trade:active, .trade.press { transform: translateY(3px); box-shadow: none !important; }
 .trade:disabled { filter: grayscale(.8) brightness(.7); cursor: not-allowed; }
@@ -259,11 +259,11 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .seg button.on { background: #36456f; color: #fff; }
 
 /* ---------- Claude Trade ---------- */
-.claude-btn { width: 100%; height: 40px; margin-top: 14px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700; font-size: 13px; letter-spacing: .4px; background: linear-gradient(135deg, #6b4bff, #a24bff 55%, #ff7a45); box-shadow: 0 3px 0 #4a2fb8; transition: transform .08s, filter .15s; }
-.claude-btn i { font-size: 17px; }
-.claude-btn:hover { filter: brightness(1.1); }
-.claude-btn:active { transform: translateY(3px); box-shadow: none; }
-.claude-btn.on { animation: cglow 2.2s infinite; }
+.claude-btn { width: 100%; height: 38px; margin-top: 16px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 12.5px; letter-spacing: .2px; color: #c9d1e6; background: transparent; border: 1px solid #3a4666; transition: .15s; }
+.claude-btn i { font-size: 15px; color: #8f9bbd; }
+.claude-btn:hover { background: #222a45; border-color: #55648c; color: #fff; }
+.claude-btn:active { background: #1c2339; }
+.claude-btn.on { border-color: #3fae4c; color: #7fe08a; } .claude-btn.on i { color: #7fe08a; }
 @keyframes cglow { 0%,100% { box-shadow: 0 4px 0 #4a2fb8, 0 0 0 0 rgba(162,75,255,.5); } 50% { box-shadow: 0 4px 0 #4a2fb8, 0 0 0 8px rgba(162,75,255,0); } }
 
 .aicard { position: absolute; left: 16px; top: 164px; width: 292px; z-index: 6; border-radius: 14px; background: rgba(22,28,48,.9); border: 1px solid #4a3a86; box-shadow: 0 10px 30px rgba(0,0,0,.4); backdrop-filter: blur(6px); font-size: 13px; overflow: hidden; }
@@ -284,7 +284,7 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .mclose { position: absolute; right: 14px; top: 14px; width: 34px; height: 34px; border-radius: 9px; font-size: 19px; color: var(--muted); display: grid; place-items: center; }
 .mclose:hover { background: #28314c; color: #fff; }
 .mhead { display: flex; gap: 14px; align-items: center; margin-bottom: 6px; padding-right: 30px; }
-.mlogo { width: 52px; height: 52px; border-radius: 14px; flex: none; display: grid; place-items: center; font-size: 28px; background: linear-gradient(135deg, #6b4bff, #a24bff 55%, #ff7a45); }
+
 .mhead h3 { margin: 0 0 3px; font-size: 22px; }
 .mhead p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
 .mbox h5 { margin: 20px 0 9px; font-size: 12px; letter-spacing: .7px; text-transform: uppercase; color: var(--dim); font-weight: 600; }
@@ -313,6 +313,6 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .ccprompt { padding: 10px 12px; border-radius: 9px; background: #151b2d; border: 1px solid #2f3a5e; font-size: 12.5px; line-height: 1.5; color: #d7deef; user-select: all; }
 .mbox { padding: 20px 22px 18px; }
 .mhead h3 { font-size: 18px; } .mhead p { font-size: 12.5px; }
-.mlogo { width: 42px; height: 42px; font-size: 22px; border-radius: 11px; }
+
 .mcard b { font-size: 13.5px; } .mcard span { font-size: 11.5px; }
 .seg button { height: 30px; font-size: 12.5px; }
