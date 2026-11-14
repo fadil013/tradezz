@@ -306,6 +306,7 @@ export class Agent {
       totals: this.totals,
       models: AGENT_MODELS,
       drawings: this.drawings,
+      cc: this.cc ? this.cc.state() : null,
     };
   }
 

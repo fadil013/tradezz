@@ -22,6 +22,7 @@ const { PORT, HOST, SYMBOLS, LIMITS, START_BALANCE, AGENT_MODELS } = await impor
 const { Feed } = await import('./src/feed.js');
 const { Broker } = await import('./src/broker.js');
 const { Agent, buildSnapshot } = await import('./src/agent.js');
+const { CCSession } = await import('./src/cc.js');
 
 const PUBLIC = path.join(ROOT, 'public');
 const DATA = path.join(ROOT, 'data');
@@ -48,6 +49,9 @@ const agent = new Agent({
   file: path.join(DATA, 'agent.json'),
   envFile: path.join(ROOT, '.env'),
 });
+
+const cc = new CCSession({ feed, broker, agent, file: path.join(DATA, 'cc.json') });
+agent.cc = cc;
 
 // Batch ticks every 50ms so the browser gets every trade without flooding it.
 let pending = [];
@@ -155,6 +159,8 @@ async function api(req, res, url) {
     return res.end(buildSnapshot(feed, broker));
   }
 
+  if (p === '/api/cc' && !post) { cc.touch(); return json(res, 200, cc.state()); }
+
   if (p === '/api/agent' && !post) return json(res, 200, { state: agent.state(), log: agent.log });
 
   if (!post) return json(res, 404, { error: 'Not found' });
@@ -163,9 +169,17 @@ async function api(req, res, url) {
   let body;
   try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
 
+  if (p === '/api/cc/start') { cc.start(body); return json(res, 200, cc.state()); }
+  if (p === '/api/cc/stop') { cc.stop(); return json(res, 200, cc.state()); }
+  if (p === '/api/cc/draw') {
+    try { cc.draw(body); return json(res, 200, { ok: true }); } catch (e) { return json(res, 400, { error: e.message }); }
+  }
+
   if (p === '/api/trade') {
     try {
+      const model = body.source === 'claude-code' ? cc.guard(body.amount) : null;
       const t = broker.open({
+        model,
         symbol: body.symbol,
         dir: body.dir,
         amount: body.amount,
