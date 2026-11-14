@@ -13,7 +13,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 export class CCSession {
   constructor({ feed, broker, agent, file }) {
     Object.assign(this, { feed, broker, agent, file });
-    this.s = { active: false, model: 'sonnet', minutes: 30, budget: 500, startedAt: 0, endsAt: 0, endedReason: '', lastSeen: 0 };
+    this.s = { active: false, model: 'sonnet', minutes: 30, budget: 500, startedAt: 0, endsAt: 0, endedReason: '', lastSeen: 0, prompt: '', promptAt: 0, pending: false, reply: '' };
     try { this.s = { ...this.s, ...JSON.parse(fs.readFileSync(file, 'utf8')) }; } catch { /* first run */ }
     if (this.s.active && Date.now() >= this.s.endsAt) this.finish('time is up');
     this.timer = setInterval(() => this.tick(), 1000);
@@ -48,12 +48,34 @@ export class CCSession {
     };
   }
 
+  // The user's instruction from the UI box. A Claude Code session reads it, sets the limits and trades.
+  submit({ model, prompt }) {
+    prompt = String(prompt || '').trim().slice(0, 2000);
+    if (!prompt) throw new Error('Write what you want Claude Code to do');
+    this.s.model = MODELS.includes(model) ? model : this.s.model;
+    this.s.prompt = prompt;
+    this.s.promptAt = Date.now();
+    this.s.pending = true;
+    this.s.reply = '';
+    this.save();
+    this.agent.push();
+  }
+
+  // A short message from Claude Code shown in the UI (questions, status).
+  say(text) {
+    this.s.reply = String(text || '').slice(0, 600);
+    this.s.pending = false;
+    this.touch();
+    this.save();
+    this.agent.push();
+  }
+
   start({ model, minutes, budget }) {
     model = MODELS.includes(model) ? model : 'sonnet';
     minutes = Math.min(1440, Math.max(1, Math.round(Number(minutes)) || 30));
     budget = Math.min(this.broker.balance, Math.max(1, Number(budget) || 500));
     const now = Date.now();
-    this.s = { active: true, model, minutes, budget: round2(budget), startedAt: now, endsAt: now + minutes * 60000, endedReason: '', lastSeen: 0 };
+    this.s = { active: true, model, minutes, budget: round2(budget), startedAt: now, endsAt: now + minutes * 60000, endedReason: '', lastSeen: 0, prompt: this.s.prompt, promptAt: this.s.promptAt, pending: false, reply: this.s.reply };
     this.save();
     this.agent.push();
   }
@@ -88,7 +110,7 @@ export class CCSession {
     const m = this.money();
     if (Number(amount) > m.left) throw new Error(`Session bankroll left is $${m.left.toFixed(2)} - stake is too big`);
     this.touch();
-    return `claude-code/${this.s.model}`;
+    return 'claude-code';
   }
 
   // Chart drawing from Claude Code: levels, trendlines, indicators, note.

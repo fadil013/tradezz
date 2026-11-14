@@ -14,6 +14,21 @@ The server only listens on 127.0.0.1. A Claude Code session can act as the trade
    - Always send `"source":"claude-code"` so the leaderboard can compare you against the user and the API-driven Claude.
 3. Results: `GET /api/trades`, `GET /api/stats`, balance in `GET /api/init`.
 
+## Claude Code session (prompt box in the UI)
+The user opens Claude > Claude Code and types an instruction in a box. It is stored on the server:
+`GET /api/cc` -> `pending` (true while an instruction waits), `prompt`, `promptAt`, plus session fields
+(`active`, `remainingSec`, `left` = bankroll left, `pnl`). When `pending` is true, read `prompt` and:
+1. Work out the time limit and the money from the user's words. NEVER invent them. If either is missing or unclear,
+   reply with `POST /api/cc/say {"text":"..."}` asking for it, and stop.
+2. Otherwise open the session: `POST /api/cc/start {"minutes":N,"budget":N}` (only the user's numbers).
+   Trades with `source:"claude-code"` are refused unless a session is active, and stakes cannot exceed `left`.
+3. Report progress to the user in the box with `/api/cc/say` (short, factual).
+4. Trade loop until `active` is false: `curl -s localhost:3000/api/snapshot` (all 5 assets), then per asset draw your
+   analysis with `POST /api/cc/draw {"symbol","strategy","action":"call|put|skip","duration","confidence","reasoning","indicators":["sma|ema|bb"],"levels":[{"price","kind":"support|resistance|target|entry","label"}],"lines":[{"start_price","start_secs_ago","end_price","end_secs_ago","label"}]}`
+   (prices within 4% of market) and place trades with `/api/trade` (`source:"claude-code"`, `strategy`, `reasoning`, `confidence`).
+   Obey every rule in the user's prompt (assets, style, max stake, stop-loss). Close early with `POST /api/trade/close {"id":N}` or `{"all":true}`.
+5. At the end report real P/L and win rate honestly. 99% accuracy is impossible; short-term moves are near a coin flip, skipping is often right.
+
 ## Rules of the game
 - Win pays stake x payout (BTC 92%, ETH 90%, SOL 88%, XRP 86%, BNB 90%); loss loses the stake; equal price refunds.
 - Break-even win rate is 100/(100+payout) ~ 52-54%. Short-term moves are near a coin flip, so skipping is often right.

@@ -719,7 +719,7 @@ function adoptAgent(st) {
   S.drawings = st.drawings || {};
   syncAi();
   updateClaudePill();
-  if (!$('#modal').classList.contains('hidden') && ccPick.tab === 'code') renderClaudeModal();
+  if (!$('#modal').classList.contains('hidden') && document.activeElement?.id !== 'ccPrompt') renderClaudeModal();
 }
 
 // Claude Code may switch indicators on for the asset you are viewing.
@@ -777,51 +777,32 @@ function openClaudeModal() {
 }
 function closeModal() { $('#modal').classList.add('hidden'); }
 
-const CC_MODELS = [['haiku', 'Haiku 5.5', 'Fast and light'], ['sonnet', 'Sonnet 5.5', 'Balanced'], ['opus', 'Opus 5.5', 'Deepest reasoning']];
-const CC_PROMPT = 'Take over my Tradezz session now. Read CLAUDE.md, then run the Claude Code trading loop until the session ends.';
-let ccPick = { tab: 'code', model: 'sonnet', minutes: 30, budget: 500 };
+let ccPick = { prompt: '' };
 
-function ccBody() {
+function ccStatus() {
   const c = S.agent.cc || {};
   if (c.active) {
     const m = Math.floor(c.remainingSec / 60), s = c.remainingSec % 60;
-    const pnl = `<span class="${c.pnl >= 0 ? 'pos' : 'neg'}">${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)}</span>`;
-    return `<div class="ccstat ${c.connected ? 'live' : 'wait'}"><span class="cdot"></span>${c.connected ? 'Claude Code is connected and trading' : 'Waiting for Claude Code to connect…'}</div>
-<div class="cards" style="margin-top:12px"><div class="card"><small>Time left</small><b>${m}:${pad2(s)}</b></div><div class="card"><small>Bankroll left</small><b>$${fmt(c.left, 2)}</b></div><div class="card"><small>Session P/L</small><b>${pnl}</b></div><div class="card"><small>Trades · W/L</small><b>${c.trades} · ${c.wins}/${c.losses}</b></div></div>
-${c.connected ? '' : `<h5>Paste this into your Claude Code terminal</h5><div class="ccprompt" id="ccPrompt">${esc(CC_PROMPT)}</div><button class="btn block" style="margin-top:8px" data-mact="copy">Copy prompt</button>`}
-<button class="btn danger block big" data-mact="ccstop">Stop session</button>`;
+    const pnl = `<b class="${c.pnl >= 0 ? 'pos' : 'neg'}">${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)}</b>`;
+    return `<div class="ccstat live"><span class="cdot"></span>Claude Code is trading</div>
+<div class="ccrow"><div><small>Time left</small><b>${m}:${pad2(s)}</b></div><div><small>Bankroll left</small><b>$${fmt(c.left, 2)}</b></div><div><small>P/L</small>${pnl}</div><div><small>Trades W/L</small><b>${c.trades} · ${c.wins}/${c.losses}</b></div></div>`;
   }
-  const ended = c.endedReason ? `<div class="note" style="margin-bottom:12px">Last session ended: ${esc(c.endedReason)}. P/L ${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)} over ${c.trades} trades.</div>` : '';
-  return `${ended}<h5>Model</h5><div class="mcards">${CC_MODELS.map(([k, n, d]) => `<button class="mcard ${ccPick.model === k ? 'on' : ''}" data-mact="ccmodel" data-v="${k}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
-<div class="mnote">Type <span class="kbd">/model</span> in your Claude Code terminal to match this choice. The label is recorded on every trade.</div>
-<h5>Session length</h5><div class="ccin"><input class="input" id="ccMin" type="number" min="1" max="1440" step="1" placeholder="e.g. 30" value="${ccPick.minutes}"><span>minutes</span></div>
-<h5>Money to trade with</h5><div class="ccin"><span>$</span><input class="input" id="ccBud" type="number" min="1" step="1" placeholder="e.g. 500" value="${ccPick.budget}"></div>
-<div class="mnote">Claude Code can never stake more than this bankroll. It stops when time is up or the money is gone.</div>
-<button class="btn green block big" data-mact="ccstart">${icon('play', 14)} Start Claude Code session</button>`;
+  if (c.pending) return `<div class="ccstat wait"><span class="cdot"></span>Sent. Waiting for Claude Code to pick it up…</div>`;
+  if (c.reply) return `<div class="ccreply"><span>Claude Code</span>${esc(c.reply)}</div>`;
+  if (c.endedReason) return `<div class="ccstat"><span class="cdot"></span>Last session ended: ${esc(c.endedReason)} · P/L ${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)} over ${c.trades} trades</div>`;
+  return '';
 }
 
 function renderClaudeModal() {
-  const A = S.agent;
-  const running = A.settings.enabled;
-  const keyIn = $('#mKey') ? $('#mKey').value : '';
-  const tabs = `<div class="seg" style="margin:14px 0 4px"><button data-mact="tab" data-v="code" class="${ccPick.tab === 'code' ? 'on' : ''}">Claude Code (no key)</button><button data-mact="tab" data-v="api" class="${ccPick.tab === 'api' ? 'on' : ''}">API key</button></div>`;
-  if (ccPick.tab === 'code') {
-    $('#modal').innerHTML = `<div class="mbox"><button class="mclose" data-mact="close">${icon('close')}</button>
-<div class="mhead"><div class="mlogo">${icon('claude')}</div><div><h3>Claude Code</h3><p>Your own Claude Code terminal takes over: it studies the 5 markets, draws levels and indicators on the chart and places the trades.</p></div></div>${tabs}${ccBody()}
-<div class="mfoot">Demo money only · live prices · runs on localhost</div></div>`;
-    return;
-  }
-  $('#modal').innerHTML = `<div class="mbox"><button class="mclose" data-mact="close">${icon('close')}</button>
-<div class="mhead"><div class="mlogo">${icon('claude')}</div><div><h3>Claude (API key)</h3><p>Pick a model. Claude studies all 5 markets, draws its strategy on your chart, then places demo trades like a professional.</p></div></div>${tabs}
-<h5>Model</h5><div class="mcards">${A.models.map((m) => { const i = MODEL_INFO[m.id] || [m.label, '', '']; return `<button class="mcard ${cm.model === m.id ? 'on' : ''}" data-mact="model" data-v="${m.id}"><b>${i[0]}</b><span>${i[1]}</span><em>${i[2]}</em></button>`; }).join('')}</div>
-<h5>Trading style</h5><div class="seg">${['conservative', 'balanced', 'aggressive'].map((k) => `<button data-mact="risk" data-v="${k}" class="${cm.risk === k ? 'on' : ''}">${k === 'aggressive' ? 'Active' : k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
-<div class="mnote">${STYLE_INFO[cm.risk]}</div>
-<h5>Analyse every</h5><select class="select" id="mInterval">${[[30, '30 seconds'], [60, '1 minute'], [120, '2 minutes'], [300, '5 minutes']].map(([v, l]) => `<option value="${v}" ${Number(cm.interval) === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-${!A.keySet ? `<h5>Anthropic API key</h5><input class="input" id="mKey" type="password" placeholder="sk-ant-..." autocomplete="off" value="${esc(keyIn)}"><div class="mnote">Saved only in a local <span class="kbd">.env</span> file on this computer. Needed once.</div>` : ''}
-${running ? `<div class="note" style="margin-top:18px"><b>Claude is trading now</b> with ${esc((MODEL_INFO[A.settings.model] || [A.settings.model])[0])}. Change the options above and press Apply, or stop it.</div>
-<div class="row" style="gap:10px;margin-top:12px"><button class="btn primary" style="flex:1" data-mact="apply">Apply changes</button><button class="btn danger" style="flex:1" data-mact="stop">Stop Claude</button></div>`
-  : `<button class="btn green block big" data-mact="start">${icon('play', 16)} Start Claude Trade</button>`}
-<div class="mfoot">Demo money only · prices are real and live · Claude's analysis is drawn on the chart</div></div>`;
+  const c = S.agent.cc || {};
+  const keep = $('#ccPrompt') ? $('#ccPrompt').value : ccPick.prompt;
+  ccPick.prompt = keep;
+  $('#modal').innerHTML = `<div class="mbox cc"><button class="mclose" data-mact="close">${icon('close')}</button>
+<div class="mhead"><div><h3>Claude Code</h3><p>Write your instruction. Say how long, how much money and what to trade. Claude Code draws on your chart and trades.</p></div></div>
+<textarea id="ccPrompt" class="ccprompt-in" rows="6" placeholder="e.g. Trade BTC and ETH for 30 minutes with $500. Only take high-confidence setups, max 3% per trade, stop if I lose $100.">${esc(ccPick.prompt)}</textarea>
+<div class="ccact"><button class="btn green big" data-mact="ccsend">${icon('play', 14)} ${c.active ? 'Send new instruction' : 'Send to Claude Code'}</button>${c.active ? '<button class="btn danger big" data-mact="ccstop">Stop</button>' : ''}</div>
+<div class="ccstatus">${ccStatus()}</div>
+<div class="mfoot">Demo money only · live prices · keep your Claude Code terminal open</div></div>`;
 }
 
 async function claudeStart(applyOnly = false) {
@@ -842,15 +823,13 @@ $('#modal').addEventListener('click', async (e) => {
   if (!el) return;
   const a = el.dataset.mact;
   if (a === 'close') closeModal();
-  else if (a === 'tab') { ccPick.tab = el.dataset.v; renderClaudeModal(); }
-  else if (a === 'ccmodel') { ccPick.model = el.dataset.v; renderClaudeModal(); }
-  else if (a === 'cctime') { ccPick.minutes = Number(el.dataset.v); renderClaudeModal(); }
-  else if (a === 'ccbudget') { ccPick.budget = Number(el.dataset.v); renderClaudeModal(); }
-  else if (a === 'copy') { try { await navigator.clipboard.writeText(CC_PROMPT); toast('info', 'Prompt copied', 'Paste it into Claude Code'); } catch { toast('err', 'Copy failed', 'Select the text and copy it'); } }
-  else if (a === 'ccstart') {
-    try { const mi = $('#ccMin'), bu = $('#ccBud'); if (mi) ccPick.minutes = Number(mi.value); if (bu) ccPick.budget = Number(bu.value); if (!(ccPick.minutes >= 1)) throw new Error('Enter a session length of at least 1 minute'); if (!(ccPick.budget >= 1)) throw new Error('Enter an amount of at least $1'); await api('/api/cc/start', { model: ccPick.model, minutes: ccPick.minutes, budget: ccPick.budget }); renderClaudeModal(); } catch (er) { toast('err', 'Could not start', er.message); }
+    else if (a === 'ccsend') {
+    const ta = $('#ccPrompt');
+    const text = ta ? ta.value.trim() : '';
+    if (!text) { toast('err', 'Write something first', 'Tell Claude Code what to do'); return; }
+    try { await api('/api/cc/prompt', { prompt: text }); ccPick.prompt = ''; toast('info', 'Sent to Claude Code', 'Waiting for it to pick it up', 3500); } catch (er) { toast('err', 'Could not send', er.message); }
   }
-  else if (a === 'ccstop') { try { await api('/api/cc/stop', {}); renderClaudeModal(); } catch (er) { toast('err', er.message); } }
+  else if (a === 'ccstop') { try { await api('/api/cc/stop', {}); } catch (er) { toast('err', er.message); } }
   else if (a === 'model') { cm.model = el.dataset.v; renderClaudeModal(); }
   else if (a === 'risk') { cm.risk = el.dataset.v; renderClaudeModal(); }
   else if (a === 'start') claudeStart(false);
@@ -858,7 +837,7 @@ $('#modal').addEventListener('click', async (e) => {
   else if (a === 'stop') { try { const r = await api('/api/agent/config', { enabled: false }); adoptAgent(r.state); closeModal(); toast('info', 'Claude stopped'); } catch (er) { toast('err', er.message); } }
 });
 $('#modal').addEventListener('change', (e) => { if (e.target.id === 'mInterval') cm.interval = Number(e.target.value); });
-$('#modal').addEventListener('input', (e) => { if (e.target.id === 'ccMin') ccPick.minutes = Number(e.target.value); if (e.target.id === 'ccBud') ccPick.budget = Number(e.target.value); });
+$('#modal').addEventListener('input', (e) => { if (e.target.id === 'ccPrompt') ccPick.prompt = e.target.value; });
 $('#aiCard').addEventListener('click', (e) => { if (e.target.closest('[data-ai]')) { S.aiCollapsed = !S.aiCollapsed; updateAiCard(); } });
 
 async function agentCfg(patch) {

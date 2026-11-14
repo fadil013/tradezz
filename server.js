@@ -171,6 +171,10 @@ async function api(req, res, url) {
 
   if (p === '/api/cc/start') { cc.start(body); return json(res, 200, cc.state()); }
   if (p === '/api/cc/stop') { cc.stop(); return json(res, 200, cc.state()); }
+  if (p === '/api/cc/prompt') {
+    try { cc.submit(body); return json(res, 200, cc.state()); } catch (e) { return json(res, 400, { error: e.message }); }
+  }
+  if (p === '/api/cc/say') { cc.say(body.text); return json(res, 200, cc.state()); }
   if (p === '/api/cc/clear') { agent.drawings = {}; agent.save(); agent.push(); return json(res, 200, { ok: true }); }
   if (p === '/api/cc/draw') {
     try { cc.draw(body); return json(res, 200, { ok: true }); } catch (e) { return json(res, 400, { error: e.message }); }
