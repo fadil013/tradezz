@@ -369,6 +369,14 @@ function upsertTrade(t) {
   S.recent = S.recent.slice(0, 300);
 
   if (t.status !== 'open' && wasOpen) onSettled(t);
+  // Claude placed a trade: say so and take the chart to that asset so it is visible live.
+  if (t.status === 'open' && !wasOpen && (t.source === 'claude-code' || t.source === 'claude')) {
+    const si = S.symbols.findIndex((x) => x.id === t.symbol);
+    if (si >= 0) {
+      toast('info', `${t.source === 'claude-code' ? 'Claude Code' : 'Claude'}: ${t.dir === 'buy' ? 'BUY' : 'SELL'} ${S.symbols[si].short} $${fmt(t.amount, 2)}`, `${durName(t.duration)}${t.strategy ? ' · ' + t.strategy : ''}`, 6000);
+      if (si !== S.idx) selectSymbol(si);
+    }
+  }
   syncChartTrades();
   renderOpenMini();
   if (['trades', 'activities', 'leaders', 'profile', 'claude'].includes(S.sheet)) renderSheet();
