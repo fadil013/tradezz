@@ -350,3 +350,6 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .ccreply { padding: 10px 12px; border-radius: 9px; background: #212a44; border: 1px solid #2d3858; font-size: 13px; line-height: 1.5; }
 .ccreply span { display: block; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: #d97757; margin-bottom: 3px; font-weight: 600; }
 .mbox.cc .mfoot { margin-top: 10px; font-size: 11.5px; }
+
+.hlogo { color: #d97757; flex: none; display: grid; place-items: center; width: 38px; height: 38px; }
+.mbox.cc .mhead { display: flex; align-items: center; gap: 12px; }
