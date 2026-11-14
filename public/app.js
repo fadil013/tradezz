@@ -899,7 +899,9 @@ $('#sheet').addEventListener('change', (e) => {
 // live connection
 // ======================================================================
 function connect() {
+  if (S.es) { try { S.es.close(); } catch { /* ignore */ } }
   const es = new EventSource('/events');
+  S.es = es;
   es.addEventListener('t', (e) => {
     const ticks = JSON.parse(e.data);
     for (const [idx, price, ts] of ticks) {
@@ -936,6 +938,23 @@ function connect() {
   };
   es.onerror = () => { S.sseDown = true; refreshLive(); };
 }
+
+// Self-healing: a frozen stream (sleep, throttled background tab, network blip) is detected and rebuilt.
+let healing = false;
+async function heal(goLive) {
+  if (healing) return;
+  healing = true;
+  try {
+    S.lastTick = Date.now();
+    connect();
+    await resync();
+    if (goLive) { chart.follow = true; chart.notify(); }
+  } finally { healing = false; }
+}
+setInterval(() => { if (!document.hidden && S.lastTick && Date.now() - S.lastTick > 8000) heal(true); }, 4000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && (Date.now() - (S.lastTick || 0) > 3000)) heal(true); });
+window.addEventListener('online', () => heal(true));
+window.addEventListener('focus', () => { if (Date.now() - (S.lastTick || 0) > 5000) heal(true); });
 
 async function resync() {
   try {
