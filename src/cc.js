@@ -50,7 +50,7 @@ export class CCSession {
 
   start({ model, minutes, budget }) {
     model = MODELS.includes(model) ? model : 'sonnet';
-    minutes = Math.min(480, Math.max(5, Math.round(Number(minutes)) || 30));
+    minutes = Math.min(1440, Math.max(5, Math.round(Number(minutes)) || 30));
     budget = Math.min(this.broker.balance, Math.max(10, Number(budget) || 500));
     const now = Date.now();
     this.s = { active: true, model, minutes, budget: round2(budget), startedAt: now, endsAt: now + minutes * 60000, endedReason: '', lastSeen: 0 };

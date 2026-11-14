@@ -318,3 +318,11 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .seg button { height: 30px; font-size: 12.5px; }
 
 .mlogo { display: none; } .mhead { padding-right: 36px; }
+.ccin { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-radius: 9px; background: var(--field); border: 1px solid #323b58; color: var(--muted); font-size: 13px; }
+.ccin:focus-within { border-color: #4d6cc4; }
+.ccin input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: 0; color: #fff; font-size: 16px; font-weight: 600; -moz-appearance: textfield; }
+.ccin input::-webkit-outer-spin-button, .ccin input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.chips { display: flex; gap: 6px; margin-top: 8px; }
+.chips button { flex: 1; height: 28px; border-radius: 8px; background: #252e49; color: var(--muted); font-size: 12px; font-weight: 600; }
+.chips button:hover { background: #2f3a5c; color: #fff; }
+.chips button.on { background: #36456f; color: #fff; }

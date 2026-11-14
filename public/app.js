@@ -771,7 +771,7 @@ function closeModal() { $('#modal').classList.add('hidden'); }
 
 const CC_MODELS = [['haiku', 'Haiku 5.5', 'Fast and light'], ['sonnet', 'Sonnet 5.5', 'Balanced'], ['opus', 'Opus 5.5', 'Deepest reasoning']];
 const CC_TIMES = [[15, '15 min'], [30, '30 min'], [60, '1 hour'], [120, '2 hours']];
-const CC_BUDGETS = [100, 250, 500, 1000, 2500];
+const CC_BUDGETS = [100, 500, 1000, 2500, 5000];
 const CC_PROMPT = 'Take over my Tradezz session now. Read CLAUDE.md, then run the Claude Code trading loop until the session ends.';
 let ccPick = { tab: 'code', model: 'sonnet', minutes: 30, budget: 500 };
 
@@ -788,8 +788,10 @@ ${c.connected ? '' : `<h5>Paste this into your Claude Code terminal</h5><div cla
   const ended = c.endedReason ? `<div class="note" style="margin-bottom:12px">Last session ended: ${esc(c.endedReason)}. P/L ${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)} over ${c.trades} trades.</div>` : '';
   return `${ended}<h5>Model</h5><div class="mcards">${CC_MODELS.map(([k, n, d]) => `<button class="mcard ${ccPick.model === k ? 'on' : ''}" data-mact="ccmodel" data-v="${k}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
 <div class="mnote">Type <span class="kbd">/model</span> in your Claude Code terminal to match this choice. The label is recorded on every trade.</div>
-<h5>Session length</h5><div class="seg">${CC_TIMES.map(([v, l]) => `<button data-mact="cctime" data-v="${v}" class="${ccPick.minutes === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-<h5>Money to trade with</h5><div class="seg">${CC_BUDGETS.map((v) => `<button data-mact="ccbudget" data-v="${v}" class="${ccPick.budget === v ? 'on' : ''}">$${v}</button>`).join('')}</div>
+<h5>Session length</h5><div class="ccin"><input class="input" id="ccMin" type="number" min="5" max="1440" step="1" value="${ccPick.minutes}"><span>minutes</span></div>
+<div class="chips">${[15, 30, 60, 120, 240].map((v) => `<button data-mact="cctime" data-v="${v}" class="${ccPick.minutes === v ? 'on' : ''}">${v >= 60 ? v / 60 + 'h' : v + 'm'}</button>`).join('')}</div>
+<h5>Money to trade with</h5><div class="ccin"><span>$</span><input class="input" id="ccBud" type="number" min="10" step="10" value="${ccPick.budget}"></div>
+<div class="chips">${CC_BUDGETS.map((v) => `<button data-mact="ccbudget" data-v="${v}" class="${ccPick.budget === v ? 'on' : ''}">$${v}</button>`).join('')}</div>
 <div class="mnote">Claude Code can never stake more than this bankroll. It stops when time is up or the money is gone.</div>
 <button class="btn green block big" data-mact="ccstart">${icon('play', 14)} Start Claude Code session</button>`;
 }
@@ -842,7 +844,7 @@ $('#modal').addEventListener('click', async (e) => {
   else if (a === 'ccbudget') { ccPick.budget = Number(el.dataset.v); renderClaudeModal(); }
   else if (a === 'copy') { try { await navigator.clipboard.writeText(CC_PROMPT); toast('info', 'Prompt copied', 'Paste it into Claude Code'); } catch { toast('err', 'Copy failed', 'Select the text and copy it'); } }
   else if (a === 'ccstart') {
-    try { await api('/api/cc/start', { model: ccPick.model, minutes: ccPick.minutes, budget: ccPick.budget }); renderClaudeModal(); } catch (er) { toast('err', 'Could not start', er.message); }
+    try { const mi = $('#ccMin'), bu = $('#ccBud'); if (mi) ccPick.minutes = Number(mi.value); if (bu) ccPick.budget = Number(bu.value); if (!(ccPick.minutes >= 5)) throw new Error('Session length must be at least 5 minutes'); if (!(ccPick.budget >= 10)) throw new Error('Money must be at least $10'); await api('/api/cc/start', { model: ccPick.model, minutes: ccPick.minutes, budget: ccPick.budget }); renderClaudeModal(); } catch (er) { toast('err', 'Could not start', er.message); }
   }
   else if (a === 'ccstop') { try { await api('/api/cc/stop', {}); renderClaudeModal(); } catch (er) { toast('err', er.message); } }
   else if (a === 'model') { cm.model = el.dataset.v; renderClaudeModal(); }
@@ -852,6 +854,7 @@ $('#modal').addEventListener('click', async (e) => {
   else if (a === 'stop') { try { const r = await api('/api/agent/config', { enabled: false }); adoptAgent(r.state); closeModal(); toast('info', 'Claude stopped'); } catch (er) { toast('err', er.message); } }
 });
 $('#modal').addEventListener('change', (e) => { if (e.target.id === 'mInterval') cm.interval = Number(e.target.value); });
+$('#modal').addEventListener('input', (e) => { if (e.target.id === 'ccMin') ccPick.minutes = Number(e.target.value); if (e.target.id === 'ccBud') ccPick.budget = Number(e.target.value); });
 $('#aiCard').addEventListener('click', (e) => { if (e.target.closest('[data-ai]')) { S.aiCollapsed = !S.aiCollapsed; updateAiCard(); } });
 
 async function agentCfg(patch) {
