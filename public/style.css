@@ -259,8 +259,8 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 .seg button.on { background: #36456f; color: #fff; }
 
 /* ---------- Claude Trade ---------- */
-.claude-btn { position: relative; width: 100%; height: 44px; margin-top: 14px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 9px; font-weight: 600; font-size: 14px; letter-spacing: .2px; color: #fff; background: #d97757; border: 0; box-shadow: none; transition: background .15s; }
-.claude-btn .cmark { color: #fff; flex: none; }
+.claude-btn { position: relative; width: 100%; height: 44px; margin-top: 9px; padding: 0 10px; border-radius: 10px; display: flex; align-items: center; justify-content: flex-start; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: .2px; color: #fff; background: #d97757; border: 0; box-shadow: none; transition: background .15s; }
+.claude-btn .cmark { color: #fff; flex: none; width: 26px; height: 26px; margin: 0; }
 .claude-btn:hover { background: #e28664; }
 .claude-btn:active { background: #c96a4b; }
 .claude-btn.on::after { content: ''; position: absolute; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: #44c64e; box-shadow: 0 0 0 3px rgba(68,198,78,.2); }
