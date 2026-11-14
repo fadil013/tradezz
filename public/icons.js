@@ -6,7 +6,7 @@ const P = {
   profile: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.6a6.5 6.5 0 0 1 11.6 0"/>',
   market: '<path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M9.5 12.5a2.5 2.5 0 0 0 5 0"/>',
   activities: '<path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 9 16 9"/><polyline points="8.5 12.5 11 15 16 9.5"/>',
-  claude: '<g stroke="currentColor" stroke-width="2.1" stroke-linecap="round" fill="none"><path d="M12.00 10.40L12.00 1.20M12.89 10.67L16.81 4.87M13.34 11.13L20.55 6.44M13.59 12.14L19.97 12.70M13.41 12.75L21.71 17.16M12.73 13.43L15.81 19.48M12.00 13.60L12.00 22.40M11.30 13.44L8.41 19.37M10.57 12.73L2.29 16.95M10.41 12.14L3.33 12.76M10.64 11.15L3.52 6.70M11.13 10.66L7.43 4.96"/></g>',
+  claude: '<defs><mask id="cmk" style="mask-type:alpha"><image href="claude-mark.png" width="24" height="24"/></mask></defs><rect width="24" height="24" fill="currentColor" mask="url(#cmk)"/>',
   help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.6-3 4.2"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/>',
   trades: '<path d="M7 4v16"/><path d="M7 20l-3.2-3.2"/><path d="M7 20l3.2-3.2"/><path d="M17 20V4"/><path d="M17 4l-3.2 3.2"/><path d="M17 4l3.2 3.2"/>',
   insights: '<circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/>',
