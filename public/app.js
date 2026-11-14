@@ -60,7 +60,7 @@ const S = {
   agent: null, agentLog: [], drawings: {}, aiCollapsed: false, tabs: [], spark: {}, sparkMin: {},
   sheet: null, soundOn: ls.get('sound', '1') !== '0', unseenClaude: 0, unseenAct: 0,
   loading: true, sseDown: false, lastTick: 0, reqId: 0, tradeTab: 'open', analysing: false,
-  ind: JSON.parse(ls.get('ind', '{"sma":false,"ema":false,"bb":false}')),
+  ind: { sma: false, ema: false, bb: false, dc: false }, // all indicators start off
 };
 let chart;
 const cur = () => S.symbols[S.idx];
@@ -373,8 +373,8 @@ function upsertTrade(t) {
   if (t.status === 'open' && !wasOpen && (t.source === 'claude-code' || t.source === 'claude')) {
     const si = S.symbols.findIndex((x) => x.id === t.symbol);
     if (si >= 0) {
+      if (S.autoTrades && t.source === 'claude-code') { S.autoTrades = false; if (S.sheet !== 'trades') openSheet('trades'); }
       toast('info', `${t.source === 'claude-code' ? 'Claude Trades' : 'Claude'}: ${t.dir === 'buy' ? 'BUY' : 'SELL'} ${S.symbols[si].short} $${fmt(t.amount, 2)}`, `${durName(t.duration)}${t.strategy ? ' · ' + t.strategy : ''}`, 6000);
-      if (si !== S.idx) selectSymbol(si);
       // mirror Claude's trade in the Time / Amount boxes (display only, not saved as your default)
       S.duration = t.duration; $('#timeInput').value = fmtDur(t.duration); if (chart) chart.expirySec = t.duration;
       S.amount = t.amount; $('#amtInput').value = t.amount % 1 ? fmt(t.amount, 2) : fmt(t.amount, 0); updatePayout();
@@ -412,9 +412,12 @@ function refreshStats() {
 
 function renderOpenMini() {
   const box = $('#openMini');
-  if (!S.open.length) { box.innerHTML = ''; return; }
+  const sg = (n) => (n >= 0 ? '+' : '-') + '$' + fmt(Math.abs(n), 2);
+  const sumHtml = S.sum ? (() => { const m = S.sum; const be = 53; const wr = m.winRate; const rows = (m.trades || []).map((t) => { const sy = (S.symbols.find((x) => x.id === t.sym) || { short: t.sym }).short; const col = t.status === 'won' ? '#3fcf6e' : t.status === 'lost' ? '#ff5a4a' : '#8a94ad'; return `<div class="tl"><span class="dot" style="background:${col}"></span><b>${sy}</b><span class="mu">${t.dir === 'buy' ? 'CALL' : 'PUT'} · $${fmt(t.amount, 0)}</span><span class="tp" style="color:${col}">${t.status === 'won' ? '+' : t.status === 'lost' ? '-' : ''}${t.status === 'draw' ? 'draw' : '$' + fmt(Math.abs(t.profit), 0)}</span></div>`; }).join(''); return `<div class="sumcard"><div class="sh"><b>Summary</b><button data-sumx>×</button></div><div class="net ${m.net >= 0 ? 'up' : 'dn'}">${sg(m.net)}<small>${m.roi >= 0 ? '+' : ''}${m.roi}% on $${fmt(m.volume, 0)} staked</small></div><div class="wr"><div class="wrbar"><i style="width:${wr == null ? 0 : wr}%"></i><u style="left:${be}%"></u></div><div class="wrt"><span>Win rate <b>${wr == null ? '-' : wr + '%'}</b></span><span class="mu">break-even ${be}%</span></div></div><div class="sr"><span>Trades</span><b>${m.n}</b></div><div class="sr"><span>Won</span><b class="up">${m.won} · ${sg(m.gain)}</b></div><div class="sr"><span>Lost</span><b class="dn">${m.lost} · -$${fmt(m.loss, 2)}</b></div><div class="tls">${rows}</div></div>`; })() : '';
+  if (S.stage) { box.innerHTML = `<div class="anbox"><div class="pt"><i class="pdot"></i>Analysing</div><div class="plist">${S.stage.map((l) => `<div class="pl">${esc(l)}</div>`).join('')}</div></div>`; const pl = box.querySelector('.plist'); if (pl) pl.scrollTop = pl.scrollHeight; return; }
+  if (!S.open.length) { box.innerHTML = sumHtml; return; }
   const now = Date.now();
-  box.innerHTML = `<h6>Open trades</h6>` + S.open.slice().sort((a, b) => a.expiry - b.expiry).slice(0, 8).map((t) => {
+  box.innerHTML = sumHtml + `<h6>Open trades</h6>` + S.open.slice().sort((a, b) => a.expiry - b.expiry).slice(0, 8).map((t) => {
     const s = S.symbols.find((x) => x.id === t.symbol);
     const left = Math.max(0, Math.ceil((t.expiry - now) / 1000));
     return `<div class="mini" data-exp="${t.expiry}"><span class="md ${t.dir}">${t.dir === 'buy' ? '▲' : '▼'}</span><b>${s.short}</b><span class="ma">$${fmt(t.amount, 0)}</span><span class="mt">${fmtDur(left).replace(/^00:/, '')}</span></div>`;
@@ -514,7 +517,7 @@ function tradeRows(list, withResult = true) {
     const res = t.status === 'open'
       ? `<span data-exp="${t.expiry}">${fmtDur(Math.max(0, Math.ceil((t.expiry - Date.now()) / 1000))).replace(/^00:/, '')}</span>`
       : t.status === 'won' ? `<span class="pos">${signed(t.profit)}</span>` : t.status === 'lost' ? `<span class="neg">${signed(t.profit)}</span>` : `<span class="mut">${t.status === 'void' ? 'void' : 'draw'}</span>`;
-    const why = t.reasoning ? `<tr><td colspan="4" class="mut" style="padding:0 6px 10px;font-size:12.5px;line-height:1.45">${t.strategy ? `<b style="color:#c9a4ff">✦ ${esc(t.strategy)}</b> · ` : ''}${t.confidence != null ? `<b>${t.confidence}%</b> · ` : ''}${esc(t.reasoning)}</td></tr>` : '';
+    const why = t.reasoning ? `<tr><td colspan="4" class="mut" style="padding:0 6px 8px;font-size:12px;line-height:1.4;max-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="">${t.strategy ? `<b style="color:#c9a4ff">✦ ${esc(t.strategy)}</b> · ` : ''}${t.confidence != null ? `<b>${t.confidence}%</b> · ` : ''}${esc(t.reasoning)}</td></tr>` : '';
     return `<tr><td><b>${s.short}</b><div class="mut" style="font-size:11.5px">${dateTimeStr(t.openTime)} · ${durName(t.duration)}</div></td><td>${dirTag(t.dir)}<div style="margin-top:3px">${srcTag(t.source)}</div></td><td class="r">$${fmt(t.amount)}<div class="mut" style="font-size:11.5px">${fmt(t.openPrice, s.decimals)}${t.closePrice ? ' → ' + fmt(t.closePrice, s.decimals) : ''}</div></td><td class="r">${res}</td></tr>${why}`;
   }).join('') + `</tbody></table>`;
 }
@@ -716,12 +719,45 @@ function updateClaudePill() {
 }
 
 // ---- Claude's chart drawings + strategy card ----------------------------
+let lastReply = null, lastStageAt = 0;
+function showReply(c) {
+  if (!c) return;
+  const r = c.reply || '';
+  if (lastReply === null) { lastReply = r; return; } // ignore whatever was there before this page loaded
+  if (r === lastReply) return;
+  lastReply = r;
+  if (r && !r.startsWith('Summary:')) toast('info', 'Claude Trades', r, 15000);
+}
+setInterval(() => { if (S.stage && Date.now() - lastStageAt > 25000) { S.stage = null; renderOpenMini(); } }, 3000);
+let lastStageSym = null;
+function showStage(st) {
+  let el = document.getElementById('procBox');
+  lastStageAt = Date.now();
+  if (el) el.remove();
+  if (!st) { S.stage = null; lastStageSym = null; renderOpenMini(); return; }
+  lastStageSym = st.symbol; // the chart stays on the coin you picked (no auto switching)
+  S.sum = null; // a new run clears the old summary
+  const placing = /^Trade \d/.test(st.lines[st.lines.length - 1] || '');
+  S.stage = placing ? null : st.lines.slice(-12);
+  renderOpenMini();
+}
+let lastSumAt = null;
+function showSummary(m) {
+  if (lastSumAt === null) { lastSumAt = m ? m.at : 0; return; } // ignore a summary that existed before this page loaded
+  if (!m || m.at <= lastSumAt) return;
+  lastSumAt = m.at;
+  S.sum = m;
+  renderOpenMini();
+}
 function adoptAgent(st) {
   if (!st) return;
   S.agent = st;
   S.drawings = st.drawings || {};
+  showStage(st.cc && st.cc.stage);
+  showReply(st.cc);
   syncAi();
   updateClaudePill();
+  showSummary(st.cc && st.cc.summary);
   if (!$('#modal').classList.contains('hidden') && document.activeElement?.id !== 'ccPrompt' && document.activeElement?.id !== 'mKey') renderClaudeModal();
 }
 
@@ -749,7 +785,7 @@ const AI_KIND_COL = { support: '#3fcf6e', resistance: '#ff5a4a', target: '#6aa5f
 function updateAiCard() {
   const card = $('#aiCard');
   const d = cur() && S.drawings[cur().id];
-  if (!d || Date.now() - d.time > 1500000) { card.classList.add('hidden'); return; }
+  if (true || !d) { card.classList.add('hidden'); return; } // analysis card removed by user request
   card.classList.remove('hidden');
   const act = d.action === 'call' ? ['buy', 'CALL'] : d.action === 'put' ? ['sell', 'PUT'] : ['', 'SKIP'];
   const kinds = [...new Set(d.levels.map((l) => l.kind))];
@@ -843,7 +879,7 @@ $('#modal').addEventListener('click', async (e) => {
     const ta = $('#ccPrompt');
     const text = ta ? ta.value.trim() : '';
     if (!text) { toast('err', 'Write something first', 'Tell Claude Trades what to do'); return; }
-    try { await api('/api/cc/prompt', { prompt: text }); ccPick.prompt = ''; toast('info', 'Sent to Claude Trades', 'Waiting for it to pick it up', 3500); } catch (er) { toast('err', 'Could not send', er.message); }
+    try { await api('/api/cc/prompt', { prompt: text }); ccPick.prompt = ''; closeModal(); S.autoTrades = true; if (S.sheet) closeSheet(); } catch (er) { toast('err', 'Could not send', er.message); }
   }
   else if (a === 'ccstop') { try { await api('/api/cc/stop', {}); } catch (er) { toast('err', er.message); } }
   else if (a === 'model') { cm.model = el.dataset.v; renderClaudeModal(); }
@@ -854,6 +890,7 @@ $('#modal').addEventListener('click', async (e) => {
 });
 $('#modal').addEventListener('change', (e) => { if (e.target.id === 'mInterval') cm.interval = Number(e.target.value); });
 $('#modal').addEventListener('input', (e) => { if (e.target.id === 'ccPrompt') ccPick.prompt = e.target.value; });
+$('#openMini').addEventListener('click', (e) => { if (e.target.closest('[data-sumx]')) { S.sum = null; renderOpenMini(); } });
 $('#aiCard').addEventListener('click', (e) => { if (e.target.closest('[data-ai]')) { S.aiCollapsed = !S.aiCollapsed; updateAiCard(); } });
 
 async function agentCfg(patch) {
@@ -1184,6 +1221,12 @@ async function boot() {
   S.sent = init.sentiments;
   S.agent = init.agent;
   S.drawings = init.agent.drawings || {};
+  // Refresh = clean chart: drop old drawings and don't re-enable their indicators (unless an analysis is running right now).
+  if (!(init.agent.cc && init.agent.cc.stage)) {
+    S.drawings = {};
+    lastIndStamp = Date.now();
+    api('/api/cc/clear', {}).catch(() => {});
+  }
   S.prices = init.feed.prices;
   const saved = (() => { try { return JSON.parse(ls.get('tabs', 'null')); } catch { return null; } })();
   S.tabs = Array.isArray(saved) && saved.length && saved.every((i) => init.symbols[i]) ? saved : init.symbols.map((_, i) => i);

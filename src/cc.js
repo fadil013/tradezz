@@ -8,12 +8,13 @@ import { LIMITS } from './config.js';
 
 const MODELS = ['haiku', 'sonnet', 'opus'];
 const INDS = ['sma', 'ema', 'bb', 'dc'];
+const OVERS = ['fib', 'sr', 'sd', 'ob', 'fvg', 'sweep', 'bos', 'trend', 'channel', 'pitch', 'ext', 'wave', 'hs', 'pos', 'vp'];
 const round2 = (n) => Math.round(n * 100) / 100;
 
 export class CCSession {
   constructor({ feed, broker, agent, file }) {
     Object.assign(this, { feed, broker, agent, file });
-    this.s = { active: false, model: 'sonnet', minutes: 30, budget: 500, startedAt: 0, endsAt: 0, endedReason: '', lastSeen: 0, prompt: '', promptAt: 0, pending: false, reply: '' };
+    this.s = { active: false, model: 'sonnet', minutes: 30, budget: 500, startedAt: 0, endsAt: 0, endedReason: '', lastSeen: 0, prompt: '', promptAt: 0, pending: false, reply: '', summary: null };
     try { this.s = { ...this.s, ...JSON.parse(fs.readFileSync(file, 'utf8')) }; } catch { /* first run */ }
     if (this.s.active && Date.now() >= this.s.endsAt) this.finish('time is up');
     this.timer = setInterval(() => this.tick(), 1000);
@@ -75,7 +76,7 @@ export class CCSession {
     minutes = Math.min(1440, Math.max(1, Math.round(Number(minutes)) || 30));
     budget = Math.min(this.broker.balance, Math.max(1, Number(budget) || 500));
     const now = Date.now();
-    this.s = { active: true, model, minutes, budget: round2(budget), startedAt: now, endsAt: now + minutes * 60000, endedReason: '', lastSeen: 0, prompt: this.s.prompt, promptAt: this.s.promptAt, pending: false, reply: this.s.reply };
+    this.s = { active: true, model, minutes, budget: round2(budget), startedAt: now, endsAt: now + minutes * 60000, endedReason: '', lastSeen: 0, prompt: this.s.prompt, promptAt: this.s.promptAt, pending: false, reply: this.s.reply, summary: null };
     this.save();
     this.agent.push();
   }
@@ -90,7 +91,34 @@ export class CCSession {
 
   stop() { this.finish('stopped by you'); }
 
+  // Live "process" shown on screen while Claude analyses: which asset is in focus and the steps so far.
+  stage(symbol, line) {
+    if (symbol === null) this.s.stage = null;
+    else { const st = this.s.stage || { lines: [] }; st.symbol = symbol; st.lines = [...st.lines, line].slice(-12); this.s.stage = st; }
+    this.agent.push();
+  }
+
+  // Once every trade of the session has settled, post a plain summary (count, won, lost, net).
+  summarize() {
+    if (this.busy) return;
+    const mine = this.mine();
+    if (!mine.length || mine.some((t) => t.status === 'open')) return;
+    const key = mine.length + ':' + mine[mine.length - 1].id;
+    if (this.sumKey === key) return;
+    this.sumKey = key;
+    const won = mine.filter((t) => t.status === 'won');
+    const lost = mine.filter((t) => t.status === 'lost');
+    const gain = round2(won.reduce((a, t) => a + t.profit, 0));
+    const loss = round2(lost.reduce((a, t) => a + t.amount, 0));
+    const net = round2(gain - loss);
+    const dec = won.length + lost.length;
+    const volume = round2(mine.reduce((a, t) => a + t.amount, 0));
+    this.s.summary = { n: mine.length, won: won.length, lost: lost.length, gain, loss, net, at: Date.now(), winRate: dec ? Math.round((won.length / dec) * 1000) / 10 : null, volume, roi: volume ? Math.round((net / volume) * 1000) / 10 : 0, trades: mine.slice(-12).map((t) => ({ sym: t.symbol, dir: t.dir, amount: t.amount, profit: t.profit || 0, status: t.status, dur: t.duration })) };
+    this.say(`Summary: ${mine.length} trades, ${won.length} won, ${lost.length} lost. Won +$${gain}, lost -$${loss}. Net ${net >= 0 ? '+' : '-'}$${Math.abs(net)}.`);
+  }
+
   tick() {
+    this.summarize();
     if (!this.s.active) return;
     if (Date.now() >= this.s.endsAt) return this.finish('time is up');
     const m = this.money();
@@ -130,6 +158,7 @@ export class CCSession {
       levels: clean.levels,
       lines: clean.lines,
       indicators: (Array.isArray(d.indicators) ? d.indicators : []).filter((i) => INDS.includes(i)),
+      overlays: (Array.isArray(d.overlays) ? d.overlays : []).filter((o) => OVERS.includes(o)),
       by: 'claude-code',
       tradeId: null,
     };

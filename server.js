@@ -23,6 +23,7 @@ const { Feed } = await import('./src/feed.js');
 const { Broker } = await import('./src/broker.js');
 const { Agent, buildSnapshot } = await import('./src/agent.js');
 const { CCSession } = await import('./src/cc.js');
+const { runInstant } = await import('./src/instant.js');
 
 const PUBLIC = path.join(ROOT, 'public');
 const DATA = path.join(ROOT, 'data');
@@ -172,7 +173,11 @@ async function api(req, res, url) {
   if (p === '/api/cc/start') { cc.start(body); return json(res, 200, cc.state()); }
   if (p === '/api/cc/stop') { cc.stop(); return json(res, 200, cc.state()); }
   if (p === '/api/cc/prompt') {
-    try { cc.submit(body); return json(res, 200, cc.state()); } catch (e) { return json(res, 400, { error: e.message }); }
+    try {
+      cc.submit(body);
+      if (!broker.openTrades().length && !cc.busy) { try { if (runInstant({ cc, broker, agent, feed, prompt: cc.s.prompt })) cc.s.pending = false; else if (/\d+\s*(parallel\s+)?trades?/i.test(cc.s.prompt) && !/\$|\d\s*(k|dollars|usd)/i.test(cc.s.prompt)) cc.say('How much money per trade? Example: make 10 trades $500 each, 1 minute each.'); } catch (e) { console.error('[instant]', e.message); } }
+      return json(res, 200, cc.state());
+    } catch (e) { return json(res, 400, { error: e.message }); }
   }
   if (p === '/api/cc/say') { cc.say(body.text); return json(res, 200, cc.state()); }
   if (p === '/api/cc/clear') { agent.drawings = {}; agent.save(); agent.push(); return json(res, 200, { ok: true }); }

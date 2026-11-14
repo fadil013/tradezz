@@ -4,6 +4,8 @@
 // - Candles / Heikin-Ashi / Line / Area, SMA / EMA / Bollinger, horizontal lines.
 // - Draws open-trade markers, the expiration line, price tag, crosshair, high/low tags.
 
+import { drawOverlays } from './overlays.js';
+
 const pad2 = (n) => String(n).padStart(2, '0');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -225,6 +227,7 @@ export class TradeChart {
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', () => { this.drag = null; });
     cv.addEventListener('wheel', (e) => {
+      this.lastWheel = performance.now();
       e.preventDefault();
       const p = pos(e);
       const f = Math.exp(-e.deltaY * 0.0014);
@@ -586,7 +589,7 @@ export class TradeChart {
     const cs = this.candles;
     const n = cs.length;
     const tf = this.tf;
-    const line = (arr, color, width = 1.6) => {
+    const line = (arr, color, width = 1.6, glow = false) => {
       ctx.beginPath();
       let on = false;
       for (let i = i0; i < n; i++) {
@@ -599,6 +602,8 @@ export class TradeChart {
       }
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
+      ctx.lineJoin = 'round';
+      if (glow && !this.interacting()) { ctx.save(); ctx.globalAlpha = 0.22; ctx.lineWidth = width + 4; ctx.stroke(); ctx.restore(); ctx.lineWidth = width; }
       ctx.stroke();
     };
     const closes = cs.map((c, i) => (i === n - 1 ? this.dispC : c.c));
@@ -612,16 +617,17 @@ export class TradeChart {
       }
       return out;
     };
-    if (this.ind.sma) line(sma(20), '#ffb020');
+    if (this.ind.sma) line(sma(20), '#ffb020', 1.8, true);
     if (this.ind.ema) {
-      const k = 2 / 21;
-      const out = new Array(n).fill(null);
-      let e = null;
-      for (let i = 0; i < n; i++) {
-        e = e == null ? closes[i] : closes[i] * k + e * (1 - k);
-        if (i >= 19) out[i] = e;
-      }
-      line(out, '#3cc8ff');
+      const emaArr = (p) => {
+        const k = 2 / (p + 1);
+        const out = new Array(n).fill(null);
+        let e = null;
+        for (let i = 0; i < n; i++) { e = e == null ? closes[i] : closes[i] * k + e * (1 - k); if (i >= p - 1) out[i] = e; }
+        return out;
+      };
+      line(emaArr(21), '#ff9f43', 1.8, true);
+      line(emaArr(9), '#3cc8ff', 1.8, true);
     }
     if (this.ind.bb) {
       const m = sma(20);
@@ -648,12 +654,12 @@ export class TradeChart {
         pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
         for (let k = pts.length - 1; k >= 0; k--) ctx.lineTo(pts[k][0], pts[k][2]);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(167,139,250,0.08)';
+        ctx.fillStyle = 'rgba(90,150,255,0.08)';
         ctx.fill();
       }
-      line(up, 'rgba(167,139,250,0.9)', 1.2);
-      line(dn, 'rgba(167,139,250,0.9)', 1.2);
-      line(m, 'rgba(167,139,250,0.5)', 1);
+      line(up, 'rgba(110,165,255,0.85)', 1.2);
+      line(dn, 'rgba(110,165,255,0.85)', 1.2);
+      line(m, 'rgba(110,165,255,0.45)', 1);
       void started;
     }
 
@@ -738,8 +744,11 @@ export class TradeChart {
   setAi(d) {
     if (!d) { this.ai = null; return; }
     if (this.ai && this.ai.time === d.time) return; // same analysis - keep the animation state
-    this.ai = { time: d.time, levels: d.levels || [], lines: d.lines || [], shownAt: performance.now() };
+    this.ai = { time: d.time, levels: d.levels || [], lines: d.lines || [], overlays: d.overlays || [], action: d.action, shownAt: performance.now() };
   }
+
+  // true while the user is dragging or zooming: heavy decorations are skipped for smooth motion
+  interacting() { return !!(this.drag && this.drag.moved) || performance.now() - (this.lastWheel || 0) < 200; }
 
   aiFade() {
     if (!this.ai) return 0;
@@ -755,6 +764,7 @@ export class TradeChart {
     if (fade <= 0) return;
     const pw = this.plotW;
     const el = performance.now() - ai.shownAt;
+    if (ai.overlays.length) { try { drawOverlays(this, ctx, ai.overlays, ai.action, el, this.interacting()); } catch (e) { /* never break the chart */ } }
     ctx.save();
     ctx.font = '600 12px "Noto Sans","Segoe UI",sans-serif';
     ctx.textBaseline = 'middle';
@@ -766,6 +776,10 @@ export class TradeChart {
       const y = Math.round(this.ty(l.price)) + 0.5;
       if (y < this.plotTop - 10 || y > this.H - this.axisH) return;
       const col = AI_COLORS[l.kind] || '#8a94ad';
+      const zh = Math.max(3, Math.abs(this.ty(l.price * 1.0006) - this.ty(l.price)));
+      ctx.globalAlpha = fade * 0.14 * e;
+      ctx.fillStyle = col;
+      ctx.fillRect(0, y - zh, pw * e, zh * 2);
       ctx.setLineDash([8, 5]);
       ctx.lineWidth = 1.4;
       ctx.strokeStyle = col;
@@ -776,7 +790,7 @@ export class TradeChart {
       ctx.stroke();
       ctx.setLineDash([]);
       if (prog > 0.5) {
-        const txt = `✦ ${l.label ? l.label + '  ' : ''}${l.kind}`;
+        const txt = `${l.label || l.kind}  ${Number(l.price).toLocaleString('en-US', { maximumFractionDigits: l.price < 10 ? 4 : 2 })}`;
         const w = ctx.measureText(txt).width + 18;
         const x = pw - w - 12;
         const yy = y - 24 < this.plotTop - 8 ? y + 5 : y - 24;

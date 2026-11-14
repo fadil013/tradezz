@@ -9,27 +9,31 @@ import { SYMBOLS } from './config.js';
 const REST = ['https://api.binance.com', 'https://data-api.binance.vision'];
 const WSH = ['wss://stream.binance.com:9443', 'wss://data-stream.binance.vision'];
 
-const SEC_CAP = 9000; // keep ~2.5h of 1-second candles
+const SEC_CAP = 14000; // keep ~3.9h of 1-second candles
 const MIN_CAP = 1600; // keep ~26h of 1-minute candles
 const FLOW_MS = 45000; // taker buy/sell window used for the sentiment bar
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function upsert(arr, t, price, qty) {
+function upsert(arr, t, price, qty, bq = 0) {
   const last = arr[arr.length - 1];
   if (last && last.t === t) {
     if (price > last.h) last.h = price;
     if (price < last.l) last.l = price;
     last.c = price;
     last.v += qty;
+    last.b = (last.b || 0) + bq;
   } else if (!last || t > last.t) {
-    arr.push({ t, o: price, h: price, l: price, c: price, v: qty });
+    arr.push({ t, o: price, h: price, l: price, c: price, v: qty, b: bq });
   } else {
-    // out-of-order trade: fold into the newest candle
-    if (price > last.h) last.h = price;
-    if (price < last.l) last.l = price;
-    last.c = price;
-    last.v += qty;
+    // slightly out-of-order trade (exchange time): put it in the candle of its own second if we still have it
+    let c = last;
+    for (let i = arr.length - 2; i >= Math.max(0, arr.length - 12); i--) { if (arr[i].t === t) { c = arr[i]; break; } if (arr[i].t < t) break; }
+    if (price > c.h) c.h = price;
+    if (price < c.l) c.l = price;
+    if (c === last) c.c = price;
+    c.v += qty;
+    c.b = (c.b || 0) + bq;
   }
 }
 
@@ -39,7 +43,7 @@ function mergeHistory(live, hist) {
   for (const c of live) {
     const h = map.get(c.t);
     if (h) {
-      map.set(c.t, { t: c.t, o: h.o, h: Math.max(h.h, c.h), l: Math.min(h.l, c.l), c: c.c, v: h.v });
+      map.set(c.t, { t: c.t, o: h.o, h: Math.max(h.h, c.h), l: Math.min(h.l, c.l), c: c.c, v: h.v, b: h.b });
     } else {
       map.set(c.t, c);
     }
@@ -86,10 +90,24 @@ export class Feed extends EventEmitter {
     await this.pickHost();
     this.connect();
     this.loadHistory().catch((e) => console.error('[feed] history failed:', e.message));
+    this.syncClock();
+    setInterval(() => this.syncClock(), 300000);
     this.pollTicker();
     setInterval(() => this.pollTicker(), 20000);
     setInterval(() => this.watchdog(), 5000);
   }
+
+  // Offset between Binance's clock and ours, so "the last completed second" means the same thing as in the training data.
+  async syncClock() {
+    try {
+      const t0 = Date.now();
+      const j = await this.getJson('/api/v3/time');
+      const t1 = Date.now();
+      if (j && j.serverTime) this.skew = j.serverTime - (t0 + t1) / 2;
+    } catch { /* keep the old value */ }
+  }
+
+  exchangeNow() { return Date.now() + (this.skew || 0); }
 
   async pickHost() {
     for (let i = 0; i < REST.length; i++) {
@@ -127,7 +145,7 @@ export class Feed extends EventEmitter {
     let p = `/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
     if (endTime) p += `&endTime=${endTime}`;
     const rows = await this.getJson(p);
-    return rows.map((k) => ({ t: Math.floor(k[0] / 1000), o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5] }));
+    return rows.map((k) => ({ t: Math.floor(k[0] / 1000), o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], b: +k[9] }));
   }
 
   async loadHistory() {
@@ -143,7 +161,7 @@ export class Feed extends EventEmitter {
         try {
           let all = [];
           let end;
-          for (let p = 0; p < 5; p++) {
+          for (let p = 0; p < 12; p++) {
             const k = await this.klines(s.id, '1s', 1000, end);
             if (!k.length) break;
             all = k.concat(all);
@@ -195,7 +213,7 @@ export class Feed extends EventEmitter {
       this.lastMsg = Date.now();
       try {
         const d = JSON.parse(ev.data).data;
-        if (d && d.e === 'trade') this.onTrade(d.s, +d.p, +d.q, d.m);
+        if (d && d.e === 'trade') this.onTrade(d.s, +d.p, +d.q, d.m, +d.T);
       } catch {
         /* ignore malformed frame */
       }
@@ -227,13 +245,15 @@ export class Feed extends EventEmitter {
     }
   }
 
-  onTrade(id, price, qty, buyerIsMaker) {
+  onTrade(id, price, qty, buyerIsMaker, tradeTs) {
     const st = this.sym.get(id);
     if (!st || !(price > 0)) return;
     const now = Date.now();
-    const t = Math.floor(now / 1000);
-    upsert(st.sec, t, price, qty);
-    upsert(st.min, Math.floor(t / 60) * 60, price, qty);
+    // bucket by the EXCHANGE trade time (same as Binance klines), not by when we received it
+    const t = Math.floor((tradeTs > 0 ? tradeTs : now) / 1000);
+    const bq = buyerIsMaker ? 0 : qty; // taker-buy base volume
+    upsert(st.sec, t, price, qty, bq);
+    upsert(st.min, Math.floor(t / 60) * 60, price, qty, bq);
     st.price = price;
     st.ts = now;
     st.flow.push([now, price * qty, buyerIsMaker ? 0 : 1]);
@@ -308,6 +328,11 @@ export class Feed extends EventEmitter {
       if (b) buy += v;
     }
     return tot > 0 ? Math.round((buy / tot) * 100) : 50;
+  }
+
+  secRaw(id) {
+    const st = this.sym.get(id);
+    return st ? st.sec : [];
   }
 
   sentiments() {
