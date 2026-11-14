@@ -7,7 +7,7 @@ import path from 'node:path';
 import { LIMITS } from './config.js';
 
 const MODELS = ['haiku', 'sonnet', 'opus'];
-const INDS = ['sma', 'ema', 'bb'];
+const INDS = ['sma', 'ema', 'bb', 'dc'];
 const round2 = (n) => Math.round(n * 100) / 100;
 
 export class CCSession {

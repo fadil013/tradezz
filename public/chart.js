@@ -78,7 +78,7 @@ export class TradeChart {
     this.expirySec = 15;
     this.trades = [];
     this.closed = [];
-    this.ind = { sma: false, ema: false, bb: false };
+    this.ind = { sma: false, ema: false, bb: false, dc: false };
     this.hlines = [];
     this.ai = null; // Claude's drawings for the current asset: { time, levels, lines }
     this.tool = null;
@@ -655,6 +655,49 @@ export class TradeChart {
       line(dn, 'rgba(167,139,250,0.9)', 1.2);
       line(m, 'rgba(167,139,250,0.5)', 1);
       void started;
+    }
+
+    // Top / bottom lines: highest high and lowest low of the last 20 candles (Donchian channel)
+    if (this.ind.dc) {
+      const W = 20;
+      const up = new Array(n).fill(null);
+      const dn = new Array(n).fill(null);
+      for (let i = W - 1; i < n; i++) {
+        let hi = -Infinity, lo = Infinity;
+        for (let k = i - W + 1; k <= i; k++) { if (cs[k].h > hi) hi = cs[k].h; if (cs[k].l < lo) lo = cs[k].l; }
+        up[i] = hi; dn[i] = lo;
+      }
+      const pts = [];
+      for (let i = i0; i < n; i++) {
+        if (up[i] == null) continue;
+        const x = this.tx(cs[i].t + tf / 2);
+        if (x > pw + 20) break;
+        pts.push([x, this.ty(up[i]), this.ty(dn[i])]);
+      }
+      if (pts.length > 1) {
+        ctx.beginPath();
+        pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        for (let k = pts.length - 1; k >= 0; k--) ctx.lineTo(pts[k][0], pts[k][2]);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(120,150,255,0.05)';
+        ctx.fill();
+      }
+      line(up, 'rgba(255,138,101,0.9)', 1.3);
+      line(dn, 'rgba(77,208,161,0.9)', 1.3);
+      const lu = up[n - 1], ld = dn[n - 1];
+      if (lu != null) {
+        ctx.save();
+        ctx.setLineDash([6, 5]);
+        ctx.lineWidth = 1;
+        for (const [v, col] of [[lu, 'rgba(255,138,101,0.55)'], [ld, 'rgba(77,208,161,0.55)']]) {
+          const y = Math.round(this.ty(v)) + 0.5;
+          ctx.strokeStyle = col;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(pw, y); ctx.stroke();
+        }
+        ctx.restore();
+        this.tag(ctx, this.fmtP(lu), this.ty(lu), '#c8644a', '#fff', false);
+        this.tag(ctx, this.fmtP(ld), this.ty(ld), '#2f9d78', '#fff', false);
+      }
     }
   }
 

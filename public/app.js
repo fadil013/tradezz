@@ -451,7 +451,7 @@ function tfPopup(anchor, up) {
     `<h6>Chart type</h6>${types.map(([k, l]) => `<button class="opt ${S.type === k ? 'on' : ''}" data-pa="type" data-v="${k}">${l}${chk(S.type === k)}</button>`).join('')}`, up);
 }
 function indPopup(anchor) {
-  const rows = [['sma', 'SMA (20)', '#ffb020'], ['ema', 'EMA (20)', '#3cc8ff'], ['bb', 'Bollinger Bands (20, 2)', '#a78bfa']];
+  const rows = [['sma', 'SMA (20)', '#ffb020'], ['ema', 'EMA (20)', '#3cc8ff'], ['bb', 'Bollinger Bands (20, 2)', '#a78bfa'], ['dc', 'Top / Bottom lines (20)', '#ff8a65']];
   showPopup(anchor, `<h6>Indicators</h6>` + rows.map(([k, l, c]) => `<button class="opt" data-pa="ind" data-v="${k}"><span style="width:10px;height:10px;border-radius:50%;background:${c}"></span>${l}${chk(S.ind[k])}</button>`).join(''));
 }
 function drawPopup(anchor) {
@@ -731,7 +731,7 @@ function applyAiIndicators() {
   const d = cur() && S.drawings[cur().id];
   if (!d || !d.indicators || !d.indicators.length || d.time <= lastIndStamp) return;
   lastIndStamp = d.time;
-  S.ind = { sma: false, ema: false, bb: false };
+  S.ind = { sma: false, ema: false, bb: false, dc: false };
   for (const k of d.indicators) S.ind[k] = true;
   chart.ind = { ...S.ind };
   $('#indBtn').classList.add('act');

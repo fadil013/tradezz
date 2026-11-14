@@ -24,7 +24,7 @@ The user opens Claude > Claude Code and types an instruction in a box. It is sto
    Trades with `source:"claude-code"` are refused unless a session is active, and stakes cannot exceed `left`.
 3. Report progress to the user in the box with `/api/cc/say` (short, factual).
 4. Trade loop until `active` is false: `curl -s localhost:3000/api/snapshot` (all 5 assets), then per asset draw your
-   analysis with `POST /api/cc/draw {"symbol","strategy","action":"call|put|skip","duration","confidence","reasoning","indicators":["sma|ema|bb"],"levels":[{"price","kind":"support|resistance|target|entry","label"}],"lines":[{"start_price","start_secs_ago","end_price","end_secs_ago","label"}]}`
+   analysis with `POST /api/cc/draw {"symbol","strategy","action":"call|put|skip","duration","confidence","reasoning","indicators":["sma|ema|bb|dc"],"levels":[{"price","kind":"support|resistance|target|entry","label"}],"lines":[{"start_price","start_secs_ago","end_price","end_secs_ago","label"}]}`
    (prices within 4% of market) and place trades with `/api/trade` (`source:"claude-code"`, `strategy`, `reasoning`, `confidence`).
    Obey every rule in the user's prompt (assets, style, max stake, stop-loss). Close early with `POST /api/trade/close {"id":N}` or `{"all":true}`.
 5. At the end report real P/L and win rate honestly. 99% accuracy is impossible; short-term moves are near a coin flip, skipping is often right.
