@@ -104,7 +104,7 @@ function runSequential({ cc, broker, feed, prompt, spec }) {
   const total = Math.min(spec.count * spec.amount, broker.balance);
   if (total < 1) return false;
   // worst case per round = analysis window + 15s extra wait + ~2s gap, so the session never ends before the last trade
-  cc.start({ model: cc.s.model, minutes: Math.ceil((spec.count * (analysisSec + 17) + spec.duration) / 60) + 2, budget: total });
+  cc.start({ model: cc.s.model, minutes: Math.ceil((spec.count * (analysisSec + 4) + spec.duration) / 60) + 2, budget: total });
   cc.busy = true;
   const syms = SYMBOLS.map((x) => x.id);
   let placed = 0;
@@ -119,20 +119,15 @@ function runSequential({ cc, broker, feed, prompt, spec }) {
     const acc = Object.fromEntries(syms.map((id) => [id, { n: 0, sum: 0, last: null }]));
     const steps = Math.max(syms.length * 2, Math.round(analysisSec / 6));
     const stepMs = (analysisSec * 1000) / steps;
-    cc.stage(syms[0], `Round ${k + 1}/${spec.count}: analysing up to ${analysisSec}s, trading early if a strong signal appears... ${k ? score() : ''}`);
-    const t0 = Date.now(); let fired = false; let noted = false;
+    cc.s.stage = null;
+    cc.stage(syms[0], `Round ${k + 1}/${spec.count}: analysing for ${analysisSec}s before the trade... ${k ? score() : ''}`);
+    const t0 = Date.now(); let fired = false;
     const windowMs = analysisSec * 1000;
-    // Strong model calls (edge >= 5%) are where the tested edge is: fire the moment one shows up.
-    // After the window, accept a moderate call (>= 2%) for up to 15 more seconds, then trade the best call anyway.
+    // Full analysis first: no trade is placed before the whole window has run. At the end, trade the model's best call.
     const scan = setInterval(() => {
       if (fired || !cc.s.active) { clearInterval(scan); return; }
-      const el = Date.now() - t0;
-      if (el < 8000) return; // always show at least a short analysis first
-      const best = TRADE_ASSETS.map((id) => modelSignal(feed, id, spec.duration)).filter(Boolean).sort((x, y) => y.edge - x.edge)[0];
-      if (!best) return;
-      if (el >= windowMs && !noted) { noted = true; cc.stage(best.id, 'Window over: waiting up to 15s for at least a moderate call...'); }
-      if (best.edge >= (el < windowMs ? 0.05 : 0.02) || el >= windowMs + 15000) { fired = true; clearInterval(scan); decide(k, acc); }
-    }, 1000);
+      if (Date.now() - t0 >= windowMs) { fired = true; clearInterval(scan); decide(k, acc); }
+    }, 250);
     const step = (j) => {
       if (fired) return;
       if (!cc.s.active) { clearInterval(scan); cc.busy = false; cc.stage(null); return; }

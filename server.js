@@ -175,7 +175,7 @@ async function api(req, res, url) {
   if (p === '/api/cc/prompt') {
     try {
       cc.submit(body);
-      if (!broker.openTrades().length && !cc.busy) { try { if (runInstant({ cc, broker, agent, feed, prompt: cc.s.prompt })) cc.s.pending = false; else if (/\d+\s*(parallel\s+)?trades?/i.test(cc.s.prompt) && !/\$|\d\s*(k|dollars|usd)/i.test(cc.s.prompt)) cc.say('How much money per trade? Example: make 10 trades $500 each, 1 minute each.'); } catch (e) { console.error('[instant]', e.message); } }
+      if (!cc.busy) { try { if (runInstant({ cc, broker, agent, feed, prompt: cc.s.prompt })) cc.s.pending = false; else if (/\d+\s*(parallel\s+)?trades?/i.test(cc.s.prompt) && !/\$|\d\s*(k|dollars|usd)/i.test(cc.s.prompt)) cc.say('How much money per trade? Example: make 10 trades $500 each, 1 minute each.'); } catch (e) { console.error('[instant]', e.message); } }
       return json(res, 200, cc.state());
     } catch (e) { return json(res, 400, { error: e.message }); }
   }
