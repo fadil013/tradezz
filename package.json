@@ -1,0 +1,16 @@
+{
+  "name": "trade",
+  "version": "1.0.0",
+  "description": "Trade - a local demo (fake money) binary-options platform running on real live Binance prices, with Claude as an optional trader.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "*"
+  }
+}

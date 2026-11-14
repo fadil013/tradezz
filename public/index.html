@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%232a62f5'/%3E%3Ccircle cx='20' cy='20' r='8.5' fill='none' stroke='white' stroke-width='4.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="top">
+    <a class="brand" href="/" title="Trade">
+      <svg viewBox="0 0 40 40" class="logo"><rect width="40" height="40" rx="11" fill="#2a62f5"/><circle cx="20" cy="20" r="8.5" fill="none" stroke="#fff" stroke-width="4.5"/></svg>
+      <span>Trade</span>
+    </a>
+    <button class="sqbtn" id="favBtn" title="Favourite asset"><i data-icon="star"></i></button>
+    <div class="grow"></div>
+    <button class="claude-pill" id="claudePill" title="Open the Claude trader"><span class="cdot"></span><span id="claudePillText">Claude · OFF</span></button>
+    <button class="sqbtn" id="dimBtn" title="Dim the chart background"><i data-icon="moon"></i></button>
+    <div class="account" id="account">
+      <div class="acc-top"><span>Demo</span><span class="live" id="liveTag">Live</span><span>USD</span></div>
+      <div class="acc-bal"><span id="balance">10,000.00</span><i data-icon="caretdown"></i></div>
+      <div class="menu hidden" id="accMenu"></div>
+    </div>
+    <button class="topup" id="topUpBtn"><i data-icon="wallet"></i><span>TOP UP</span></button>
+    <button class="avatar" id="avatarBtn" title="Profile"><i data-icon="user"></i></button>
+  </header>
+
+  <div id="strip">
+    <button class="chev" id="stripL"><i data-icon="chevleft"></i></button>
+    <div id="tabs"></div>
+    <button class="chev" id="stripR"><i data-icon="chevright"></i></button>
+  </div>
+
+  <div id="main">
+    <nav id="leftbar">
+      <button class="nav" data-nav="trading"><i data-icon="trading"></i><span>Trading</span></button>
+      <button class="nav" data-nav="finance"><i data-icon="finance"></i><span>Finance</span></button>
+      <button class="nav" data-nav="profile"><i data-icon="profile"></i><span>Profile</span></button>
+      <button class="nav" data-nav="market"><i data-icon="market"></i><span>Market</span></button>
+      <button class="nav" data-nav="activities"><i data-icon="activities"></i><span>Activities</span><b class="nbadge hidden" id="badgeAct">0</b></button>
+      <button class="nav" data-nav="claude"><i data-icon="claude"></i><span>Claude</span><b class="nbadge hidden" id="badgeClaude">0</b></button>
+      <button class="nav" data-nav="help"><i data-icon="help"></i><span>Help</span></button>
+    </nav>
+
+    <section id="stage">
+      <div id="chartwrap">
+        <canvas id="cv"></canvas>
+
+        <div id="toolbar">
+          <button class="pill" id="assetBtn"><span class="coin" id="assetCoin"></span><span id="assetName">Bitcoin</span><i data-icon="caretdown"></i></button>
+          <button class="tbtn" id="tfBtn" title="Candle period &amp; chart type"><i data-icon="candles"></i><b class="badge" id="tfBadge">S15</b></button>
+          <button class="tbtn" id="indBtn" title="Indicators"><i data-icon="sliders"></i></button>
+          <button class="tbtn" id="drawBtn" title="Drawing tools"><i data-icon="draw"></i></button>
+          <button class="tbtn" id="moreBtn" title="More"><i data-icon="dots"></i></button>
+        </div>
+
+        <div id="clockrow"><span id="clock">--:--:-- UTC</span><button id="gearBtn" title="Chart settings"><i data-icon="gear"></i></button></div>
+        <button class="autobtn on" id="autoBtn" title="Auto-scale price axis">A</button>
+        <button class="tfbottom" id="tfBottom" title="Candle period"><span id="tfLabel">S15</span><i data-icon="caretup"></i></button>
+        <button class="snap hidden" id="snapBtn" title="Back to live"><i data-icon="arrowright"></i></button>
+        <div id="toasts"></div>
+        <div class="aicard hidden" id="aiCard"></div>
+        <div class="popup hidden" id="popup"></div>
+        <div id="offline" class="offline hidden">Live price feed disconnected - reconnecting…</div>
+      </div>
+    </section>
+
+    <div id="sent" title="Share of market buying vs selling (taker volume, last 45s)">
+      <span class="sl buy" id="sentTop">50%</span>
+      <div class="sbar"><div class="sfill" id="sentFill"></div><div class="smark" id="sentMark"></div></div>
+      <span class="sl sell" id="sentBot">50%</span>
+    </div>
+
+    <aside id="panel">
+      <div class="lbl">Time</div>
+      <div class="field" id="timeField">
+        <input id="timeInput" value="00:00:15" spellcheck="false" autocomplete="off">
+        <button class="fbtn" id="timeBtn"><i data-icon="clock"></i></button>
+        <div class="fpop hidden" id="timePop"></div>
+      </div>
+
+      <div class="lbl">Amount</div>
+      <div class="field" id="amtField">
+        <input id="amtInput" value="100" spellcheck="false" autocomplete="off" inputmode="decimal">
+        <button class="fbtn" id="amtBtn"><i data-icon="dollar"></i></button>
+        <div class="fpop hidden" id="amtPop"></div>
+      </div>
+
+      <div class="lbl">Payout</div>
+      <div class="payout"><div class="pp" id="payPct">+92%</div><div class="pv" id="payVal">+$92.00</div></div>
+
+      <button class="trade buy" id="buyBtn"><span class="ti"><i data-icon="arrowupright"></i></span><span>BUY</span></button>
+      <button class="trade sell" id="sellBtn"><span class="ti"><i data-icon="arrowdownright"></i></span><span>SELL</span></button>
+
+      <button class="claude-btn" id="claudeBtn"><i data-icon="claude"></i><span id="claudeBtnText">CLAUDE TRADE</span></button>
+
+      <div id="openMini"></div>
+    </aside>
+
+    <nav id="rightbar">
+      <button class="nav" data-nav="trades"><i data-icon="trades"></i><span>Trades</span></button>
+      <button class="nav" data-nav="insights"><i data-icon="insights"></i><span>Insights</span></button>
+      <button class="nav" data-nav="leaders"><i data-icon="users"></i><span>Leaders</span></button>
+      <button class="nav" data-nav="hotkeys"><i data-icon="hotkeys"></i><span>Hotkeys</span></button>
+      <div class="grow"></div>
+      <button class="nav" id="fullBtn"><i data-icon="fullscreen"></i><span>Full screen</span></button>
+    </nav>
+
+    <div class="sheet hidden" id="sheet"></div>
+  </div>
+  <div class="modal hidden" id="modal"></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
