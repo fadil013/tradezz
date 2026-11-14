@@ -722,7 +722,7 @@ function adoptAgent(st) {
   S.drawings = st.drawings || {};
   syncAi();
   updateClaudePill();
-  if (!$('#modal').classList.contains('hidden') && document.activeElement?.id !== 'ccPrompt') renderClaudeModal();
+  if (!$('#modal').classList.contains('hidden') && document.activeElement?.id !== 'ccPrompt' && document.activeElement?.id !== 'mKey') renderClaudeModal();
 }
 
 // Claude Code may switch indicators on for the asset you are viewing.
@@ -780,7 +780,7 @@ function openClaudeModal() {
 }
 function closeModal() { $('#modal').classList.add('hidden'); }
 
-let ccPick = { prompt: '' };
+let ccPick = { prompt: '', tab: 'code' };
 
 function ccStatus() {
   const c = S.agent.cc || {};
@@ -792,16 +792,29 @@ function ccStatus() {
   }
   if (c.pending) return `<div class="ccstat wait"><span class="cdot"></span>Sent. Waiting for Claude Trades to pick it up…</div>`;
   if (c.reply) return `<div class="ccreply"><span>Claude Trades</span>${esc(c.reply)}</div>`;
-  if (c.endedReason) return `<div class="ccstat"><span class="cdot"></span>Last session ended: ${esc(c.endedReason)} · P/L ${c.pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(c.pnl), 2)} over ${c.trades} trades</div>`;
   return '';
 }
 
 function renderClaudeModal() {
-  const c = S.agent.cc || {};
+  const A = S.agent;
+  const c = A.cc || {};
+  const tabs = `<div class="seg tabsx"><button data-mact="tab" data-v="code" class="${ccPick.tab !== 'api' ? 'on' : ''}">Claude Code</button><button data-mact="tab" data-v="api" class="${ccPick.tab === 'api' ? 'on' : ''}">API</button></div>`;
+  const head = (title, sub) => `<button class="mclose" data-mact="close">${icon('close')}</button><div class="mhead"><span class="hlogo">${icon('claude', 34)}</span><div><h3>${title}</h3><p>${sub}</p></div></div>${tabs}`;
+  if (ccPick.tab === 'api') {
+    const keyIn = $('#mKey') ? $('#mKey').value : '';
+    const running = A.settings.enabled;
+    $('#modal').innerHTML = `<div class="mbox cc">${head('Claude Trades', 'Claude trades on its own through the Anthropic API.')}
+<div class="seg" style="margin-top:12px">${A.models.map((m) => `<button data-mact="model" data-v="${m.id}" class="${cm.model === m.id ? 'on' : ''}">${(MODEL_INFO[m.id] || [m.label])[0]}</button>`).join('')}</div>
+<div class="seg" style="margin-top:8px">${['conservative', 'balanced', 'aggressive'].map((k) => `<button data-mact="risk" data-v="${k}" class="${cm.risk === k ? 'on' : ''}">${k === 'aggressive' ? 'Active' : k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+<div class="mnote">${STYLE_INFO[cm.risk]}</div>
+<select class="select" id="mInterval" style="margin-top:8px">${[[30, 'Analyse every 30 seconds'], [60, 'Analyse every 1 minute'], [120, 'Analyse every 2 minutes'], [300, 'Analyse every 5 minutes']].map(([v, l]) => `<option value="${v}" ${Number(cm.interval) === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+${!A.keySet ? `<input class="input" id="mKey" type="password" placeholder="Anthropic API key (sk-ant-...)" autocomplete="off" value="${esc(keyIn)}" style="margin-top:8px">` : ''}
+<div class="ccact">${running ? `<button class="btn primary big" data-mact="apply">Apply</button><button class="btn danger big" data-mact="stop">Stop</button>` : `<button class="btn green big" data-mact="start">${icon('play', 14)} Make Trade</button>`}</div></div>`;
+    return;
+  }
   const keep = $('#ccPrompt') ? $('#ccPrompt').value : ccPick.prompt;
   ccPick.prompt = keep;
-  $('#modal').innerHTML = `<div class="mbox cc"><button class="mclose" data-mact="close">${icon('close')}</button>
-<div class="mhead"><span class="hlogo">${icon('claude', 34)}</span><div><h3>Claude Trades</h3><p>Write your instruction. Say how long, how much money and what to trade. Claude draws on your chart and trades.</p></div></div>
+  $('#modal').innerHTML = `<div class="mbox cc">${head('Claude Trades', 'Write your instruction. Say how long, how much money and what to trade.')}
 <textarea id="ccPrompt" class="ccprompt-in" rows="6" placeholder="e.g. Trade BTC and ETH for 30 minutes with $500. Only take high-confidence setups, max 3% per trade, stop if I lose $100.">${esc(ccPick.prompt)}</textarea>
 <div class="ccact"><button class="btn green big" data-mact="ccsend">${icon('play', 14)} ${c.active ? 'Update Trade' : 'Make Trade'}</button>${c.active ? '<button class="btn danger big" data-mact="ccstop">Stop</button>' : ''}</div>
 <div class="ccstatus">${ccStatus()}</div></div>`;
@@ -825,7 +838,8 @@ $('#modal').addEventListener('click', async (e) => {
   if (!el) return;
   const a = el.dataset.mact;
   if (a === 'close') closeModal();
-    else if (a === 'ccsend') {
+    else if (a === 'tab') { ccPick.tab = el.dataset.v; renderClaudeModal(); }
+  else if (a === 'ccsend') {
     const ta = $('#ccPrompt');
     const text = ta ? ta.value.trim() : '';
     if (!text) { toast('err', 'Write something first', 'Tell Claude Trades what to do'); return; }

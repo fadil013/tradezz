@@ -353,3 +353,4 @@ label.fl { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--mut
 
 .hlogo { color: #d97757; flex: none; display: grid; place-items: center; width: 38px; height: 38px; }
 .mbox.cc .mhead { display: flex; align-items: center; gap: 12px; }
+.tabsx { margin-top: 12px; }
