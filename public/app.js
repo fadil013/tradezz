@@ -804,8 +804,7 @@ function renderClaudeModal() {
 <div class="mhead"><span class="hlogo">${icon('claude', 34)}</span><div><h3>Claude Trades</h3><p>Write your instruction. Say how long, how much money and what to trade. Claude draws on your chart and trades.</p></div></div>
 <textarea id="ccPrompt" class="ccprompt-in" rows="6" placeholder="e.g. Trade BTC and ETH for 30 minutes with $500. Only take high-confidence setups, max 3% per trade, stop if I lose $100.">${esc(ccPick.prompt)}</textarea>
 <div class="ccact"><button class="btn green big" data-mact="ccsend">${icon('play', 14)} ${c.active ? 'Update Trade' : 'Make Trade'}</button>${c.active ? '<button class="btn danger big" data-mact="ccstop">Stop</button>' : ''}</div>
-<div class="ccstatus">${ccStatus()}</div>
-<div class="mfoot">Demo money only · live prices · keep your Claude Code terminal open</div></div>`;
+<div class="ccstatus">${ccStatus()}</div></div>`;
 }
 
 async function claudeStart(applyOnly = false) {
