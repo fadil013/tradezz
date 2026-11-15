@@ -6,6 +6,66 @@ Built to answer one question: *how good is Claude at short-term trading?* So far
 
 ![Tradezz screenshot](docs/screenshot.jpg)
 
+## How it works
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#1b3a6b','primaryTextColor':'#ffffff','primaryBorderColor':'#4c8dff','lineColor':'#7aa7ff','secondaryColor':'#12264a','tertiaryColor':'#0b1630','fontFamily':'Inter, Segoe UI, sans-serif'}}}%%
+flowchart LR
+  subgraph DATA[" Live market data "]
+    B[("Binance<br/>public feed")] --> F["Feed<br/>1s candles + order flow"]
+  end
+  subgraph BRAIN[" Decision engines "]
+    M["Quant model<br/>P(up) per coin"]
+    A["Claude API trader<br/>Haiku / Sonnet / Opus / Fable"]
+    CC["Claude Code session<br/>REST + web research"]
+  end
+  subgraph EXEC[" Execution "]
+    S["Server<br/>127.0.0.1 only"] --> BR["Demo broker<br/>orders + settlement"]
+  end
+  F --> M
+  F --> A
+  F --> CC
+  M --> S
+  A --> S
+  CC --> S
+  BR --> UI["Web app<br/>chart, drawings, summary"]
+  UI -- "prompt / buttons" --> S
+
+  classDef data fill:#12264a,stroke:#4c8dff,color:#fff;
+  classDef brain fill:#1b3a6b,stroke:#7aa7ff,color:#fff;
+  classDef exec fill:#0f5132,stroke:#2ecc71,color:#fff;
+  classDef ui fill:#5b2a86,stroke:#b388ff,color:#fff;
+  class B,F data;
+  class M,A,CC brain;
+  class S,BR exec;
+  class UI ui;
+```
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#1b3a6b','primaryTextColor':'#ffffff','primaryBorderColor':'#4c8dff','lineColor':'#7aa7ff','fontFamily':'Inter, Segoe UI, sans-serif'}}}%%
+flowchart TD
+  S1(["You type a prompt"]) --> Q{"What did you give?"}
+  Q -- "only the money" --> AUTO["Autonomous<br/>Claude picks stake, time, horizon"]
+  Q -- "count, stake, duration" --> SEQ["Sequential or batch<br/>analyse, then trade"]
+  AUTO --> SC["Scan BTC / ETH / BNB<br/>30s, 60s, 5min"]
+  SEQ --> SC
+  SC --> E{"Model edge<br/>at least 5%?"}
+  E -- "yes" --> T["Open demo trade"]
+  E -- "no" --> SK["Skip and keep scanning"]
+  SK --> SC
+  T --> R["Settle at expiry<br/>win, loss or refund"]
+  R --> SUM(["Summary card<br/>net, win rate, trades"])
+
+  classDef a fill:#1b3a6b,stroke:#4c8dff,color:#fff;
+  classDef g fill:#0f5132,stroke:#2ecc71,color:#fff;
+  classDef r fill:#7a1f2b,stroke:#ff6b6b,color:#fff;
+  class AUTO,SEQ,SC a;
+  class T,R,SUM g;
+  class SK r;
+```
+
+More diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 > **Demo money only.** Nothing connects to a real broker, exchange account or wallet. Prices are real (Binance public market data); the balance is a number on your computer. This is not financial advice. Short-term price moves are close to a coin flip, so don't expect any trader, human or AI, to get rich here.
 >
 > Tradezz is an independent hobby project. It is not affiliated with or endorsed by any broker.
