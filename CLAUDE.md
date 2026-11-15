@@ -52,3 +52,10 @@ Claude returns per-asset decisions plus chart drawings (support/resistance level
    The session follows "Claude Code session" above, and additionally: use WebSearch to research current short-term trading edges, read
    `/api/snapshot` and `GET /api/signal?duration=30` (the logistic model's P(up) for BTC/ETH/BNB, ~52% tested, one input only), and trade only
    where several signals agree. Skip is valid. Never invent time or money; never promise wins.
+
+## Autonomous mode (the user gives only the money)
+If the Claude box prompt has just an amount (e.g. "trade with $5000", no trade count and no duration), `runAuto` in `src/instant.js` takes over:
+Claude chooses stake (5% of the budget), horizon (30s / 60s / 5min), timing and when to stop. It trades only the strongest quant-model call
+(edge >= 5%, the only region that tested above break-even), one trade at a time, max 12 trades, 20 min of scanning, stop-loss at -30%.
+No strong call means no trade. This is a deliberate exception to "never invent time": the user explicitly delegated it by giving only money.
+Money always comes from the user; never raise the budget.

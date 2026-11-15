@@ -23,6 +23,16 @@ export function parsePrompt(text) {
   return { count, amount, duration };
 }
 
+// "trade with $5000" (only money given, no count / duration) -> Claude decides everything else.
+export function parseBudget(text) {
+  const t = String(text || '').toLowerCase().replace(/,/g, '');
+  if (/(\d+)\s*(?:parallel\s+|simultaneous\s+)?trades?/.test(t)) return null; // explicit plan -> normal modes
+  const m = t.match(/\$\s*(\d+(?:\.\d+)?)\s*(k)?/) || t.match(/(\d+(?:\.\d+)?)\s*(k)?\s*(?:dollars|usd|bucks)/) || t.match(/(?:with|budget|bankroll|use)\s+(\d+(?:\.\d+)?)\s*(k)?\b/);
+  if (!m) return null;
+  const budget = parseFloat(m[1]) * (m[2] ? 1000 : 1);
+  return budget >= 10 ? budget : null;
+}
+
 // ---- strategy engine: 8 well-known strategies vote on every asset ------------------------
 function emaSeries(a, n) {
   const k = 2 / (n + 1); const out = []; let e = null;
@@ -159,9 +169,63 @@ function runSequential({ cc, broker, feed, prompt, spec }) {
   return true;
 }
 
+// Autonomous mode: the user gives ONLY the money. Claude decides duration, size, count and timing.
+// Policy (from the walk-forward tests: only strong calls, edge >= 5%, beat break-even; weaker ones do not):
+//  - scan BTC/ETH/BNB at 30s / 60s / 5min every second, trade only the strongest call and only if its edge >= 5%
+//  - one trade at a time, stake 5% of the budget, at most 12 trades, scanning for at most 20 minutes
+//  - stop-loss: stop when the session is down 30% of the budget; otherwise stop when the budget or time is used up
+//  - no strong call = no trade (skipping is correct); at least 20s of analysis before the first trade
+function runAuto({ cc, broker, feed, budget }) {
+  if (!(budget >= 10)) return false;
+  const stake = Math.max(1, Math.round(budget * 0.05));
+  const MAX_TRADES = 12, SCAN_MS = 20 * 60000, STOP = 0.3, HORIZONS = [30, 60, 300];
+  cc.start({ model: cc.s.model, minutes: 27, budget });
+  cc.busy = true;
+  const syms = SYMBOLS.map((x) => x.id);
+  const t0 = Date.now(); let placed = 0, tick = 0, lastTrade = 0, ending = false;
+  const end = (why) => {
+    if (ending) return; ending = true; clearInterval(loop);
+    cc.stage(null); cc.busy = false;
+    cc.say(`Auto trader finished (${why}). ${placed} trade${placed === 1 ? '' : 's'} placed on strong model calls only. ${placed ? 'The summary follows when the last one settles.' : 'No call was strong enough, so I skipped. That is a valid result.'}`);
+  };
+  cc.s.stage = null;
+  cc.stage(syms[0], `Auto mode, budget $${budget}: I choose stake $${stake} (5%), one trade at a time, 30s / 60s / 5min horizons, strong calls only (edge >= 5%), stop at -30% or 20 min.`);
+  const loop = setInterval(() => {
+    if (!cc.s.active) return end('session stopped');
+    tick++;
+    const el = Date.now() - t0;
+    if (tick % 5 === 1) {
+      const id = syms[Math.floor(tick / 5) % syms.length]; const r = sample(feed, id);
+      try { cc.draw({ symbol: id, strategy: '8-strategy vote', action: r.score > 0.15 ? 'call' : r.score < -0.15 ? 'put' : 'skip', duration: 60, confidence: 52, reasoning: Object.entries(r.votes).map(([n2, x]) => n2 + ' ' + arrow(x)).join(', '), indicators: ['sma', 'ema', 'bb', 'dc'], overlays: OV.map((o) => o[0]), levels: [{ price: r.hi, kind: 'resistance', label: '30m High' }, { price: r.lo, kind: 'support', label: '30m Low' }, { price: (r.hi + r.lo) / 2, kind: 'target', label: 'Mid' }, { price: r.p, kind: 'entry', label: 'Now' }] }); } catch { /* ignore */ }
+    }
+    const m = cc.money();
+    if (m.pnl <= -budget * STOP && !m.openStake) return end(`stop-loss hit, down $${Math.abs(m.pnl).toFixed(0)}`);
+    if (placed >= MAX_TRADES && !m.openStake) return end('trade limit reached');
+    if (el >= SCAN_MS && !m.openStake) return end('time limit reached');
+    if (m.left < stake && !m.openStake) return end('budget used up');
+    if (m.openStake) { if (tick % 10 === 0) cc.stage(syms[0], `Trade ${placed} is open. Waiting for it to settle before the next one. ${m.wins}W-${m.losses}L, net ${m.pnl >= 0 ? '+' : '-'}$${Math.abs(m.pnl).toFixed(0)}`); return; }
+    if (el < 20000 || Date.now() - lastTrade < 8000) { if (tick % 5 === 0) cc.stage(syms[0], 'Analysing the market before trading...'); return; }
+    if (el >= SCAN_MS || placed >= MAX_TRADES || m.left < stake) return;
+    const cands = [];
+    for (const id of ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']) for (const h of HORIZONS) { const g = modelSignal(feed, id, h); if (g) cands.push({ ...g, h }); }
+    cands.sort((x, y) => y.edge - x.edge);
+    const best = cands[0];
+    if (!best) return;
+    if (tick % 6 === 0) cc.stage(best.id, `Best call now: ${best.id.replace('USDT', '')} ${best.h}s P(up)=${best.p.toFixed(3)}, edge ${(best.edge * 100).toFixed(1)}% (need 5.0%)`);
+    if (best.edge < 0.05) return;
+    try {
+      cc.guard(stake);
+      broker.open({ model: 'claude-code', symbol: best.id, dir: best.dir, amount: stake, duration: best.h, source: 'claude-code', strategy: 'Order-flow model (auto)', confidence: Math.round(50 + best.edge * 100), reasoning: `Auto mode: strongest call across BTC/ETH/BNB at 30s/60s/5min. P(up)=${best.p.toFixed(3)} on ${best.id.replace('USDT', '')} -> ${best.dir === 'buy' ? 'CALL' : 'PUT'} for ${best.h}s, edge ${(best.edge * 100).toFixed(1)}%. Strong calls tested ~54-56% out of sample vs ~53% break-even. Small edge, near a coin flip.` });
+      placed++; lastTrade = Date.now();
+      cc.stage(best.id, `Trade ${placed}: ${best.dir === 'buy' ? 'BUY' : 'SELL'} ${best.id.replace('USDT', '')} $${stake} for ${best.h}s (edge ${(best.edge * 100).toFixed(1)}%)`);
+    } catch (e) { cc.stage(best.id, `Could not trade (${e.message})`); }
+  }, 1000);
+  return true;
+}
+
 export function runInstant({ cc, broker, agent, feed, prompt }) {
   const spec = parsePrompt(prompt);
-  if (!spec) return false;
+  if (!spec) { const b = parseBudget(prompt); return b ? runAuto({ cc, broker, feed, budget: Math.min(b, broker.balance) }) : false; }
   if (wantsSequential(prompt)) return runSequential({ cc, broker, feed, prompt, spec });
   const total = Math.min(spec.count * spec.amount, broker.balance);
   if (total < 1) return false;
