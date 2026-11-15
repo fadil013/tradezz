@@ -1,4 +1,4 @@
-// The paper broker: a fake-money account that opens and settles binary-options trades
+// The paper broker: a demo-money account that opens and settles binary-options trades
 // against the REAL live price from the feed. Nothing here touches a real exchange.
 
 import fs from 'node:fs';

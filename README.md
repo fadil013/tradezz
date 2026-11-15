@@ -1,6 +1,6 @@
 # Tradezz
 
-A **local, fake-money binary-options trading platform** that runs on **real live market prices**, with **Claude as an optional AI trader** that analyses the market, draws its strategy on the chart and places demo trades.
+A **local demo binary-options trading platform** that runs on **real live market prices**, with **Claude as an optional AI trader** that analyses the market, draws its strategy on the chart and places demo trades.
 
 Built to answer one question: *how good is Claude at short-term trading?* So far the honest answer is: close to a coin flip (see [docs/RESULTS.md](docs/RESULTS.md)).
 

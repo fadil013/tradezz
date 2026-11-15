@@ -1,7 +1,7 @@
 // Claude as the trader. Every cycle it receives a market snapshot (live candles + indicators
 // + its own track record), analyses every asset like a professional, DRAWS its strategy
 // (support / resistance / trendlines) and decides call / put / skip. The broker then executes
-// those decisions with FAKE money. Everything it says and does is logged for review.
+// those decisions with DEMO money. Everything it says and does is logged for review.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -118,7 +118,7 @@ Research mode (you are the strongest model; take control of this decision)
 - Then review ALL the snapshot data (every asset, every timeframe, the QUANT MODEL line, your track record) and decide. Skipping is a valid and often correct answer. Short-term moves are close to a coin flip, so only trade where several independent signals agree. State the real numbers you relied on in each reasoning. Never claim certainty.`;
 
 function systemPrompt(risk) {
-  return `You are Claude, working as a professional short-term trader on "Tradezz", a demo (fake money) binary-options platform that runs on REAL live Binance prices. This is an experiment to measure how well you can actually trade. No real money is involved, so be honest and calibrated - disciplined, not timid and not reckless.
+  return `You are Claude, working as a professional short-term trader on "Tradezz", a demo binary-options platform that runs on REAL live Binance prices. This is an experiment to measure how well you can actually trade. No real money is involved, so be honest and calibrated - disciplined, not timid and not reckless.
 
 How a trade works
 - Pick an asset, a direction - "call" (price HIGHER at expiry than at entry) or "put" (LOWER) - a duration (30, 60, 120, 180 or 300 seconds) and a stake (% of the demo balance).

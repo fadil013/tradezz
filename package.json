@@ -1,7 +1,7 @@
 {
   "name": "tradezz",
   "version": "1.0.0",
-  "description": "Tradezz - a local demo (fake money) binary-options platform running on real live Binance prices, with Claude as an optional trader.",
+  "description": "Tradezz - a local demo binary-options platform running on real live Binance prices, with Claude as an optional trader.",
   "private": true,
   "type": "module",
   "scripts": {
