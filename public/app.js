@@ -798,7 +798,8 @@ function updateAiCard() {
 const MODEL_INFO = {
   'claude-haiku-5-5': ['Haiku 5.5', 'Fastest and cheapest. Ideal for testing.', '≈ $0.002 / round'],
   'claude-sonnet-5-5': ['Sonnet 5.5', 'Sharper analysis at a balanced cost.', '≈ $0.04 / round'],
-  'claude-opus-5-5': ['Opus 5.5', 'Deepest reasoning. Highest cost.', '≈ $0.09 / round'],
+  'claude-opus-5-5': ['Opus 5.5', 'Deepest reasoning. High cost.', '≈ $0.09 / round'],
+  'claude-fable-5-2': ['Fable 5.2', 'Strongest model. Researches the web, then reviews all data. Highest cost (price is an estimate).', '≈ $0.15+ / round'],
 };
 const STYLE_INFO = {
   conservative: 'Only A-grade setups with 3+ confirmations and 66%+ confidence. Trades rarely, 1% max stake.',

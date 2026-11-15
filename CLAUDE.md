@@ -42,3 +42,13 @@ Claude returns per-asset decisions plus chart drawings (support/resistance level
 - `server.js` HTTP + SSE + REST API; `src/feed.js` Binance data; `src/broker.js` paper broker; `src/agent.js` Claude trader
 - `public/` web app (`chart.js` canvas chart engine, `app.js` UI)
 - `data/` saved account + Claude log (git-ignored)
+
+## Fable as the trader (two ways, neither runs automatically)
+1. **API button (CLAUDE TRADE):** pick "Fable 5.2" (`claude-fable-5-2`). It runs on the user's API key, uses `effort: high`, may call the
+   server-side `web_search` tool (max 4 searches) to refresh trading knowledge, then reviews the whole snapshot (including the QUANT MODEL
+   line) and submits decisions. If web search is unavailable on the account the call retries without it. Fable is the priciest option,
+   so the user compares it against Haiku/Sonnet on small stakes first. The Fable price in `src/config.js` is an estimate; check the real price.
+2. **Claude Code session on Fable:** the user runs `/model` and picks Fable, then types the instruction in the Claude box (or tells the session).
+   The session follows "Claude Code session" above, and additionally: use WebSearch to research current short-term trading edges, read
+   `/api/snapshot` and `GET /api/signal?duration=30` (the logistic model's P(up) for BTC/ETH/BNB, ~52% tested, one input only), and trade only
+   where several signals agree. Skip is valid. Never invent time or money; never promise wins.

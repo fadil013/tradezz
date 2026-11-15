@@ -26,7 +26,8 @@ export const LIMITS = {
 export const AGENT_MODELS = [
   { id: 'claude-haiku-5-5',  label: 'Claude Haiku 5.5 (cheapest)', in: 0.1, out: 0.5 },
   { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5',           in: 2,   out: 10 },
-  { id: 'claude-opus-5-5',   label: 'Claude Opus 5.5 (priciest)',  in: 4,   out: 20 },
+  { id: 'claude-opus-5-5',   label: 'Claude Opus 5.5',             in: 4,   out: 20 },
+  { id: 'claude-fable-5-2',  label: 'Claude Fable 5.2 (strongest, web research)', in: 6, out: 30 },
 ];
 
 export const TRADE_SOURCES = ['user', 'claude', 'claude-code'];

@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { SYMBOLS, AGENT_MODELS, LIMITS } from './config.js';
+import { signal as modelSignal } from './model.js';
 import * as ind from './indicators.js';
 
 const DURATIONS = [30, 60, 120, 180, 300];
@@ -28,6 +29,10 @@ export function buildSnapshot(feed, broker) {
   const cs = broker.stats('claude');
   const open = broker.openTrades();
   L.push(`NOW: ${new Date().toISOString()} (UTC)`);
+  try {
+    const sg = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'].map((id) => modelSignal(feed, id, 60)).filter(Boolean);
+    if (sg.length) L.push('QUANT MODEL (logistic regression on order flow + returns, walk-forward tested ~52% overall, ~54% on edge>=5%; one input, not an oracle): ' + sg.map((g) => `${g.id.replace('USDT', '')} P(up,60s)=${g.p.toFixed(3)}`).join(', '));
+  } catch { /* model optional */ }
   L.push(`ACCOUNT: demo balance $${broker.balance.toFixed(2)} | open trades: ${open.length}`);
   L.push(
     `YOUR RECORD SO FAR: ${cs.trades} settled trades, ${cs.wins}W/${cs.losses}L/${cs.draws}D, win rate ${cs.winRate ?? 'n/a'}%, P/L $${cs.pnl.toFixed(2)}`,
@@ -105,6 +110,12 @@ export const RISK = {
     text: 'Style: ACTIVE. Take any setup that has a clear, specific reason and confidence >= 55. Trade more often, but never without a reason.',
   },
 };
+
+const RESEARCH_NOTE = `
+
+Research mode (you are the strongest model; take control of this decision)
+- Before deciding you may use web_search (up to 4 times) to refresh proven short-term trading knowledge: order-flow / taker-buy imbalance, volatility regimes, session effects, mean reversion vs momentum, support/resistance and liquidity. Prefer sources with measured results over hype.
+- Then review ALL the snapshot data (every asset, every timeframe, the QUANT MODEL line, your track record) and decide. Skipping is a valid and often correct answer. Short-term moves are close to a coin flip, so only trade where several independent signals agree. State the real numbers you relied on in each reasoning. Never claim certainty.`;
 
 function systemPrompt(risk) {
   return `You are Claude, working as a professional short-term trader on "Tradezz", a demo (fake money) binary-options platform that runs on REAL live Binance prices. This is an experiment to measure how well you can actually trade. No real money is involved, so be honest and calibrated - disciplined, not timid and not reckless.
@@ -321,28 +332,36 @@ export class Agent {
 
   async call(text) {
     const client = this.getClient();
+    const fable = this.s.model.includes('fable');
     const base = {
       model: this.s.model,
       max_tokens: 16000,
-      system: systemPrompt(this.s.risk),
+      system: systemPrompt(this.s.risk) + (fable ? RESEARCH_NOTE : ''),
       messages: [{ role: 'user', content: text }],
-      output_config: { effort: this.s.effort },
+      output_config: { effort: fable ? 'high' : this.s.effort },
     };
     // Forced tool_choice is rejected by the newest models, so use auto + strict schema + an explicit instruction.
     const strictTools = [{ ...TOOL, strict: true }];
+    // Fable may search the web first (server-side tool) for current trading knowledge, then must submit decisions.
+    const webTool = { type: 'web_search_20260209', name: 'web_search', max_uses: 4 };
+    const fetchOnce = async (messages, tools, plain) => {
+      const req = { ...base, messages, tools };
+      if (plain || this.s.model.includes('haiku')) return client.messages.create(req);
+      return client.beta.messages.create({ ...req, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+    };
+    let messages = base.messages;
+    let tools = fable ? [webTool, ...strictTools] : strictTools;
     try {
-      if (!this.s.model.includes('haiku')) {
-        return await client.beta.messages.create({
-          ...base,
-          tools: strictTools,
-          betas: ['server-side-fallback-2026-07-01'],
-          fallbacks: 'default',
-        });
+      let res = await fetchOnce(messages, tools, false);
+      // A search-heavy turn can pause; continue it (max 3 times) until decisions are submitted.
+      for (let i = 0; i < 3 && res.stop_reason === 'pause_turn'; i++) {
+        messages = [...messages, { role: 'assistant', content: res.content }];
+        res = await fetchOnce(messages, tools, false);
       }
-      return await client.messages.create({ ...base, tools: strictTools });
+      return res;
     } catch (e) {
       if (e && e.status === 400) {
-        // Some option was rejected - retry once with the plainest valid request.
+        // Some option was rejected (e.g. web search not enabled on the account) - retry once with the plainest valid request.
         return await client.messages.create({ ...base, tools: [TOOL] });
       }
       throw e;

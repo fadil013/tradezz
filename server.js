@@ -5,6 +5,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { signal as modelSignal } from './src/model.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
@@ -155,6 +156,10 @@ async function api(req, res, url) {
   if (p === '/api/trades') return json(res, 200, { trades: broker.recent(Math.min(1000, parseInt(q.get('limit'), 10) || 100)) });
   if (p === '/api/stats') return json(res, 200, broker.allStats());
 
+  if (p === '/api/signal') {
+    const h = Math.min(3600, Math.max(5, Number(q.get('duration')) || 60));
+    return json(res, 200, { duration: h, signals: ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'].map((id) => modelSignal(feed, id, h)).filter(Boolean), note: 'p = model P(up). edge = |p-0.5|. Tested out of sample: ~52% overall, ~54-55% at edge>=0.05. Near a coin flip.' });
+  }
   if (p === '/api/snapshot') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(buildSnapshot(feed, broker));
